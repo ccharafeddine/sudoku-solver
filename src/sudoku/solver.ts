@@ -1,93 +1,126 @@
 /**
  * The instant solver: depth-first search over bitmask candidates, always
- * branching on the cell with the fewest options, after filling every naked
- * and hidden single it can (constraint propagation). It solves any valid 9x9
- * in well under a millisecond, and counts solutions up to a limit, which is
- * how "no solution" and "more than one solution" are detected.
+ * branching on the cell with the fewest options. It works for every shape in
+ * board.ts: each group keeps a mask of the digits it already has, and Killer
+ * cages also check that their total can still be made. It counts solutions up
+ * to a limit, which is how "no solution" and "more than one" are detected.
  */
-import { ALL, BOXES, PEERS, bit, conflicts, popcount, type Grid } from './board';
+import { CLASSIC, bit, conflicts, popcount, type Geo, type Grid } from './board';
 
 export type SolveResult =
   | { kind: 'unique'; solution: Grid }
   | { kind: 'multiple'; solution: Grid; other: Grid }
   | { kind: 'none'; reason: string };
 
-interface Ctx { limit: number; found: Grid[]; nodes: number; maxNodes: number }
+/** Can `k` different digits from `mask` add up to `sum`? (memoised; used for Killer cages) */
+const sumMemo = new Map<number, boolean>();
+export function canMakeSum(mask: number, k: number, sum: number): boolean {
+  if (k === 0) return sum === 0;
+  if (sum <= 0 || popcount(mask) < k) return false;
+  const key = (mask * 16 + k) * 64 + sum;
+  const hit = sumMemo.get(key);
+  if (hit !== undefined) return hit;
+  let ok = false;
+  for (let d = 1; !ok && mask >> (d - 1); d++) if (mask & bit(d) && d <= sum) ok = canMakeSum(mask & ~((bit(d) << 1) - 1), k - 1, sum - d);
+  sumMemo.set(key, ok);
+  return ok;
+}
 
-const ROW_OF = Array.from({ length: 81 }, (_, i) => Math.floor(i / 9));
-const COL_OF = Array.from({ length: 81 }, (_, i) => i % 9);
-const BOX_OF = Array.from({ length: 81 }, (_, i) => Math.floor(i / 27) * 3 + Math.floor((i % 9) / 3));
+interface Ctx { limit: number; found: Grid[]; nodes: number; maxNodes: number; rand?: () => number }
 
-function search(g: Grid, rows: number[], cols: number[], boxes: number[], ctx: Ctx, order?: number[]): void {
-  if (ctx.found.length >= ctx.limit || ctx.nodes > ctx.maxNodes) return;
-  ctx.nodes++;
-  // Find the empty cell with the fewest candidates.
-  let best = -1, bestMask = 0, bestCount = 10;
-  for (let i = 0; i < 81; i++) {
-    if (g[i]) continue;
-    const m = ~(rows[ROW_OF[i]] | cols[COL_OF[i]] | boxes[BOX_OF[i]]) & ALL;
-    const n = popcount(m);
-    if (n === 0) return; // dead end
-    if (n < bestCount) { best = i; bestMask = m; bestCount = n; if (n === 1) break; }
+class Search {
+  unitMask: number[];
+  cageSum: number[];
+  cageLeft: number[];
+  constructor(readonly geo: Geo, readonly g: Grid) {
+    this.unitMask = geo.units.map((u) => u.cells.reduce((m, i) => (g[i] ? m | bit(g[i]) : m), 0));
+    this.cageSum = geo.cages.map((c) => c.cells.reduce((a, i) => a + g[i], 0));
+    this.cageLeft = geo.cages.map((c) => c.cells.filter((i) => !g[i]).length);
   }
-  if (best < 0) { ctx.found.push(g.slice()); return; }
-  const r = ROW_OF[best], c = COL_OF[best], b = BOX_OF[best];
-  const digits = order ?? [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  for (const d of digits) {
-    const k = bit(d);
-    if (!(bestMask & k)) continue;
-    g[best] = d; rows[r] |= k; cols[c] |= k; boxes[b] |= k;
-    search(g, rows, cols, boxes, ctx, order);
-    g[best] = 0; rows[r] &= ~k; cols[c] &= ~k; boxes[b] &= ~k;
+  options(i: number): number {
+    const { geo } = this;
+    let used = 0;
+    for (const u of geo.unitsOf[i]) used |= this.unitMask[u];
+    let m = geo.all & ~used;
+    const c = geo.cageOf[i];
+    if (c >= 0 && m) {
+      const cage = geo.cages[c];
+      const left = this.cageLeft[c], rest = cage.sum - this.cageSum[c];
+      const free = geo.all & ~this.unitMask[geo.unitsOf[i].find((u) => geo.units[u].kind === 'cage')!];
+      for (let d = 1; d <= geo.n; d++) if (m & bit(d) && !canMakeSum(free & ~bit(d), left - 1, rest - d)) m &= ~bit(d);
+    }
+    return m;
+  }
+  set(i: number, d: number, on: boolean) {
+    const { geo } = this, k = bit(d);
+    this.g[i] = on ? d : 0;
+    for (const u of geo.unitsOf[i]) this.unitMask[u] = on ? this.unitMask[u] | k : this.unitMask[u] & ~k;
+    const c = geo.cageOf[i];
+    if (c >= 0) { this.cageSum[c] += on ? d : -d; this.cageLeft[c] += on ? -1 : 1; }
+  }
+  run(ctx: Ctx): void {
     if (ctx.found.length >= ctx.limit || ctx.nodes > ctx.maxNodes) return;
+    ctx.nodes++;
+    const { g, geo } = this;
+    let best = -1, bestMask = 0, bestCount = 99;
+    for (let i = 0; i < geo.size; i++) {
+      if (g[i]) continue;
+      const m = this.options(i);
+      const n = popcount(m);
+      if (n === 0) return;
+      if (n < bestCount) { best = i; bestMask = m; bestCount = n; if (n === 1) break; }
+    }
+    if (best < 0) { ctx.found.push(g.slice()); return; }
+    const digits: number[] = [];
+    for (let d = 1; d <= geo.n; d++) if (bestMask & bit(d)) digits.push(d);
+    if (ctx.rand) for (let k = digits.length - 1; k > 0; k--) { const j = Math.floor(ctx.rand() * (k + 1)); [digits[k], digits[j]] = [digits[j], digits[k]]; }
+    for (const d of digits) {
+      this.set(best, d, true);
+      this.run(ctx);
+      this.set(best, d, false);
+      if (ctx.found.length >= ctx.limit || ctx.nodes > ctx.maxNodes) return;
+    }
   }
 }
 
-function masks(g: Grid) {
-  const rows = new Array(9).fill(0), cols = new Array(9).fill(0), boxes = new Array(9).fill(0);
-  for (let i = 0; i < 81; i++) if (g[i]) { const k = bit(g[i]); rows[ROW_OF[i]] |= k; cols[COL_OF[i]] |= k; boxes[BOX_OF[i]] |= k; }
-  return { rows, cols, boxes };
+export interface SearchOutcome { solutions: Grid[]; /** False when the node budget ran out before the search finished. */ finished: boolean }
+
+export function searchSolutions(g: Grid, geo: Geo = CLASSIC, limit = 2, maxNodes = 2_000_000, rand?: () => number): SearchOutcome {
+  if (conflicts(g, geo).size) return { solutions: [], finished: true };
+  const ctx: Ctx = { limit, found: [], nodes: 0, maxNodes, rand };
+  new Search(geo, g.slice()).run(ctx);
+  return { solutions: ctx.found, finished: ctx.nodes <= maxNodes || ctx.found.length >= limit };
 }
 
 /** Up to `limit` solutions (default 2, enough to prove uniqueness). */
-export function findSolutions(g: Grid, limit = 2, order?: number[], maxNodes = 5_000_000): Grid[] {
-  if (conflicts(g).size) return [];
-  const { rows, cols, boxes } = masks(g);
-  const ctx: Ctx = { limit, found: [], nodes: 0, maxNodes };
-  search(g.slice(), rows, cols, boxes, ctx, order);
-  return ctx.found;
+export const findSolutions = (g: Grid, limit = 2, geo: Geo = CLASSIC) => searchSolutions(g, geo, limit).solutions;
+export const countSolutions = (g: Grid, limit = 2, geo: Geo = CLASSIC) => findSolutions(g, limit, geo).length;
+/** True only when the search proves exactly one solution within its budget. */
+export function hasUniqueSolution(g: Grid, geo: Geo = CLASSIC, maxNodes = 2_000_000): boolean {
+  const r = searchSolutions(g, geo, 2, maxNodes);
+  return r.finished && r.solutions.length === 1;
 }
-
-export const countSolutions = (g: Grid, limit = 2) => findSolutions(g, limit).length;
-export const hasUniqueSolution = (g: Grid) => countSolutions(g, 2) === 1;
 
 /** Solve and classify: unique, more than one, or none (with a plain-words reason). */
-export function solve(g: Grid): SolveResult {
-  const bad = conflicts(g);
-  if (bad.size) return { kind: 'none', reason: 'Some digits clash: the same digit is twice in a row, column or box.' };
-  // A cell with no possible digit is a clear, explainable dead end.
-  for (let i = 0; i < 81; i++) {
+export function solve(g: Grid, geo: Geo = CLASSIC): SolveResult {
+  if (conflicts(g, geo).size) return { kind: 'none', reason: `Some digits break a rule: the same digit is twice in a ${geo.variant === 'killer' ? 'group, or a cage adds up wrong' : 'row, column or box'}.` };
+  const s = new Search(geo, g.slice());
+  for (let i = 0; i < geo.size; i++) {
     if (g[i]) continue;
-    let m = ALL;
-    for (const p of PEERS[i]) if (g[p]) m &= ~bit(g[p]);
-    if (!m) return { kind: 'none', reason: `Row ${Math.floor(i / 9) + 1}, column ${(i % 9) + 1} has no digit left that fits.` };
+    if (!s.options(i)) return { kind: 'none', reason: `Row ${Math.floor(i / geo.n) + 1}, column ${(i % geo.n) + 1} has no digit left that fits.` };
   }
-  const sols = findSolutions(g, 2);
-  if (!sols.length) return { kind: 'none', reason: 'This puzzle has no solution: every way of filling it in breaks a rule somewhere.' };
-  if (sols.length === 1) return { kind: 'unique', solution: sols[0] };
-  return { kind: 'multiple', solution: sols[0], other: sols[1] };
+  const r = searchSolutions(g, geo, 2, 20_000_000);
+  if (!r.solutions.length) return { kind: 'none', reason: r.finished ? 'This puzzle has no solution: every way of filling it in breaks a rule somewhere.' : 'The solver gave up: this puzzle is too open to check.' };
+  if (r.solutions.length === 1) return r.finished ? { kind: 'unique', solution: r.solutions[0] } : { kind: 'none', reason: 'The solver gave up: this puzzle is too open to check.' };
+  return { kind: 'multiple', solution: r.solutions[0], other: r.solutions[1] };
 }
 
-/** A random complete grid: search with a shuffled digit order from an empty board. */
-export function randomSolution(rand: () => number = Math.random): Grid {
-  const order = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-  for (let i = 8; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
-  // Seed the first row and the diagonal boxes randomly so grids vary beyond digit relabelling.
-  const g = new Array(81).fill(0);
-  for (const b of [0, 4, 8]) {
-    const ds = [1, 2, 3, 4, 5, 6, 7, 8, 9];
-    for (let i = 8; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [ds[i], ds[j]] = [ds[j], ds[i]]; }
-    BOXES[b].forEach((cell, k) => (g[cell] = ds[k]));
+/** A random complete grid: search from an empty board, trying digits in a random order at every step. */
+export function randomSolution(rand: () => number = Math.random, geo: Geo = CLASSIC): Grid {
+  // Cages come after the grid is made, so fill with the plain shape.
+  const plain = geo.variant === 'killer' ? CLASSIC : geo;
+  for (;;) {
+    const r = searchSolutions(new Array(plain.size).fill(0), plain, 1, 20_000, rand);
+    if (r.solutions.length) return r.solutions[0];
   }
-  return findSolutions(g, 1, order)[0];
 }
