@@ -1,0 +1,28 @@
+Sudoku Solver: progress log
+===========================
+Read this and lessons.md at the start of a session.
+
+STATUS (v1.0.0, not tagged yet)
+- 9x9 grid: click/keyboard/number-pad/digit-button entry, givens locked, conflicts red, guides (row/col/box + same digit).
+- Pencil marks: manual (N or Shift+digit) and Auto notes; placing a digit cleans notes (setting).
+- Paint mode (P): pick a digit, click squares.
+- Undo/redo + clickable two-way History timeline (snapshots).
+- Instant solver in a Web Worker: unique / multiple (two answers) / none (with a reason).
+- Human-style solver: naked/hidden single, pointing, box-line, naked/hidden pair and triple, X-Wing, XY-Wing, Swordfish; plain-words explanations; highlights pattern, groups, ghost digit, struck notes.
+- Hint (show, then Do it), Check, Solve; Steps playback with speed slider, step list jump, ⏮ ‹ › and [ ].
+- Rating by hardest technique (Easy/Medium/Hard/Expert, Fiendish = needs guessing).
+- Generator by level with symmetric digging; seed + disguise fallback after 1.5 s.
+- Edit puzzle (type your own, min 17 givens), Restart, Load/Copy puzzle/Copy as grid/Copy share link (#p=..&e=..), hashchange opens links.
+- Timer (pauses when hidden or with Pause, which hides the grid); game resumes from localStorage.
+- Four skins x light/dark, System default; gear Settings (Appearance, Play options, Updates desktop-only, About).
+- Lessons (8) on mini boards, spotlight tour (10), welcome offer.
+- Logo/icons/favicon/social card; PWA; Tauri 2 config; wrangler.jsonc; SITE_URL plugin.
+- ESLint, Vitest, CI, release workflow. README, PLAN.md, lessons.md.
+
+VERIFIED
+- Production build in Chromium: every control, lessons answered, tour, settings (no Updates on web),
+  8 theme variants screenshotted, phone width has no horizontal overflow, no layout shift through hints/steps/solve.
+
+NEXT
+- Owner decisions in PLAN.md section 4 (variants, extra techniques, daily puzzle).
+- Tag v1.0.0 when the owner asks (release workflow builds the installers).
