@@ -1,0 +1,12 @@
+// Cloudflare Workers static assets: serves the web build in dist/.
+// Only wrangler reads this file; the desktop build ignores it.
+// Build the web bundle first, then: npx wrangler deploy. The domain is set in
+// Cloudflare, not here; set SITE_URL at build time for absolute link previews.
+{
+  "name": "sudoku-solver",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
