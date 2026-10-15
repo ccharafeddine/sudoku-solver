@@ -6,6 +6,7 @@ import { LEVEL_LABELS, LEVELS, nextStep, TECH, type Level, type Rating, type Ste
 import type { Request, Response } from './sudoku/protocol';
 import type { SolveResult } from './sudoku/solver';
 import { History, blankSnap, cloneSnap, type Snapshot } from './app/history';
+import { canEnter, doneProblem, entryState, hasProgress } from './app/entry';
 import { fromHash, importText, shareUrl } from './app/share';
 import { Timer, formatTime, stepDelay } from './app/timer';
 import { checkForUpdate, updatesEnabled } from './app/update';
@@ -76,6 +77,12 @@ let pencil = false;
 let paint = false;
 let brush = 0;
 let editing = false;
+/** A Done problem shown in the entry bar until the next change. */
+let entryNote = '';
+/** Shown once the worker confirms a typed-in puzzle has one answer. */
+let readyNote = '';
+/** The puzzle to go back to if the player cancels typing one in. */
+let beforeEntry: { snap: Snapshot; variant: Variant; cages: Cage[]; ms: number } | null = null;
 /** The answer for the current givens, once the worker has found it (null while unknown or if there is none or many). */
 let solution: Grid | null = null;
 let solveInfo: SolveResult | null = null;
@@ -145,17 +152,19 @@ function render() {
   $<HTMLInputElement>('auto-notes').checked = settings.autoNotes;
   $<HTMLButtonElement>('undo').disabled = !history.canUndo;
   $<HTMLButtonElement>('redo').disabled = !history.canRedo;
-  $('edit').setAttribute('aria-pressed', String(editing));
-  $('edit').textContent = editing ? 'Done editing' : 'Edit puzzle';
   const ready = !editing && !!solution;
   $<HTMLButtonElement>('hint').disabled = editing || isComplete(snap.values, geo);
   $<HTMLButtonElement>('hint').textContent = hint ? 'Do it' : 'Hint';
   $<HTMLButtonElement>('check').disabled = !ready;
   $<HTMLButtonElement>('solve').disabled = !ready || isComplete(snap.values, geo);
   $<HTMLButtonElement>('restart').disabled = editing;
-  $<HTMLButtonElement>('edit').disabled = geo.variant === 'killer';
-  $('edit').title = geo.variant === 'killer' ? 'Killer cages can\'t be typed in yet: load a Killer puzzle with a share link' : 'Type in your own puzzle (Alt+E)';
-  $('rating').textContent = editing ? 'Editing' : rating ? ratingText(rating) : '';
+  $<HTMLButtonElement>('own').disabled = editing || !canEnter(settings.variant);
+  $('own').title = canEnter(settings.variant) ? 'Type in a puzzle from a book or newspaper (Alt+E)' : 'Killer cages can\'t be typed in: pick another puzzle type, or load a Killer puzzle from a share link';
+  $<HTMLButtonElement>('new').disabled = editing;
+  $('rating').textContent = editing ? 'Entering your puzzle' : rating ? ratingText(rating) : '';
+  const bar = $('entry-bar');
+  bar.classList.toggle('hidden', !editing);
+  if (editing && !entryNote) { $('entry-text').textContent = entryState(snap.values, geo).text; bar.classList.remove('bad'); }
   renderHistory();
   renderSteps();
 }
@@ -252,6 +261,7 @@ function commit(label: string, fromSteps = false) {
 }
 
 function afterChange() {
+  if (editing) entryNote = '';
   save();
   if (!editing && filledCount(snap.values) === geo.size && isComplete(snap.values, geo)) {
     if (solvedAt === null) {
@@ -341,7 +351,7 @@ function loadPuzzle(givens: Grid, label: string, entered?: Grid | null, keepTime
   showStepText(null, 'Press Play to watch the whole puzzle solved one trick at a time, or › to take one step. Each step says which trick it uses and why it works.');
   editing = false;
   selected = givens.findIndex((v) => !v);
-  if (filledCount(givens) === 0 && variant !== 'killer') { startEditing(); return; }
+  if (filledCount(givens) === 0 && canEnter(variant)) { startEntry(true); return; }
   analyse();
   afterChange();
 }
@@ -355,8 +365,8 @@ function analyse() {
     solveInfo = r.result;
     solution = r.result.kind === 'unique' ? r.result.solution : null;
     if (r.result.kind === 'none') status(`This puzzle can't be solved. ${r.result.reason}`, 'bad');
-    else if (r.result.kind === 'multiple') status('This puzzle has more than one answer, so the solver can\'t pick one. Add more digits with Edit puzzle.', 'bad');
-    else if (solvedAt === null) status(statusLine());
+    else if (r.result.kind === 'multiple') status('This puzzle has more than one answer, so the solver can\'t pick one. Try Enter my own and add more numbers.', 'bad');
+    else if (solvedAt === null) { status(readyNote || statusLine(), readyNote ? 'ok' : ''); readyNote = ''; }
     render();
   });
   void ask({ kind: 'rate', grid: g, ...shape() }).then((r) => { if (r.kind === 'rate' && gridString(g) === gridString(givensGrid())) { rating = r.rating; render(); } });
@@ -382,25 +392,67 @@ async function newPuzzle() {
   if (r.closest) showStepText(null, `No ${LEVEL_LABELS[level]} ${VARIANT_LABELS[variant]} puzzle turned up in time, so here is a ${LEVEL_LABELS[r.level]} one. Try again for another go.`);
 }
 
-function startEditing() {
+/** "Enter my own": confirm first if there is play to lose, then blank the board in the chosen shape. */
+async function askEnterOwn() {
+  if (editing) return;
+  if (!canEnter(settings.variant)) { status('Killer cages can\'t be typed in. Pick another puzzle type first.', 'bad'); return; }
+  if (solvedAt === null && hasProgress(snap) && !(await confirmClear())) return;
+  startEntry(false);
+}
+function startEntry(keep: boolean) {
   stopPlay();
+  if (!keep && !editing) beforeEntry = { snap: cloneSnap(snap), variant: geo.variant, cages, ms: timer.ms };
   editing = true;
+  entryNote = '';
   timer.pause();
-  steps = []; stepsBase = -1; hint = null; marks = undefined;
-  // Editing starts from just the givens.
-  snap.values = givensGrid();
-  history.reset(snap, 'Edit puzzle');
-  status('Type in the puzzle\'s digits. Press Done editing when it matches your puzzle.', 'thinking');
+  steps = []; stepsBase = -1; hint = null; marks = undefined; wrongCells.clear();
+  solution = null; solveInfo = null; rating = null; solvedAt = null;
+  if (!keep) {
+    setShape(settings.variant, []);
+    snap = blankSnap(geo.size);
+    selected = 0;
+  }
+  history.reset(snap, 'Enter my own');
+  showStepText(null, 'When your puzzle is in, press Done. Then you can play it, or use Hint, Play or Solve.');
+  status('Enter my own puzzle: pick a square and type its number. Leave blanks empty.', 'thinking');
   if (selected < 0) selected = 0;
   afterChange();
+  board.cells[selected]?.focus({ preventScroll: true });
 }
-function finishEditing() {
-  editing = false;
+function cancelEntry() {
+  const b = beforeEntry;
+  editing = false; entryNote = ''; beforeEntry = null;
+  if (b && b.snap.givens.some(Boolean)) loadPuzzle(b.snap.values.map((v, i) => (b.snap.givens[i] ? v : 0)), 'Back to your puzzle', b.snap.values, b.ms, b.variant, b.cages);
+  else void newPuzzle();
+}
+async function finishEntry() {
   const g = snap.values.slice();
-  const least = { classic: 17, diagonal: 12, killer: 0, mini6: 8, mini4: 4 }[geo.variant];
-  if (filledCount(g) < least) { editing = true; status(`A puzzle this shape needs at least ${least} digits to have just one answer. Add some more.`, 'bad'); render(); return; }
+  const st = entryState(g, geo);
+  const show = (t: string) => { entryNote = t; $('entry-text').textContent = t; $('entry-bar').classList.add('bad'); status(t, 'bad'); };
+  const early = doneProblem(st, 'unique');
+  if (early) { show(early); return; }
+  const btn = $<HTMLButtonElement>('entry-done');
+  btn.disabled = true;
+  $('entry-text').textContent = 'Checking your puzzle…';
+  const r = await ask({ kind: 'solve', grid: g, ...shape() });
+  btn.disabled = false;
+  if (!editing || gridString(g) !== gridString(snap.values)) return;
+  if (r.kind !== 'solve') { show('Couldn\'t check the puzzle. Press Done again.'); return; }
+  const problem = doneProblem(st, r.result.kind, r.result.kind === 'none' ? r.result.reason : '');
+  if (problem) { show(problem); return; }
+  beforeEntry = null;
+  readyNote = 'Your puzzle is ready! Play it yourself, or press Hint for a tip, Play to watch it solved, or Solve for the answer.';
   loadPuzzle(g, 'Your puzzle');
 }
+let confirmResolve: ((ok: boolean) => void) | null = null;
+const confirmDialog = $<HTMLDialogElement>('confirm-dialog');
+function confirmClear(): Promise<boolean> {
+  return new Promise((res) => { confirmResolve = res; confirmDialog.showModal(); $('confirm-no').focus(); });
+}
+const settleConfirm = (ok: boolean) => { const f = confirmResolve; confirmResolve = null; if (confirmDialog.open) confirmDialog.close(); f?.(ok); };
+$('confirm-yes').onclick = () => settleConfirm(true);
+$('confirm-no').onclick = () => settleConfirm(false);
+confirmDialog.addEventListener('close', () => settleConfirm(false));
 
 // ---------- help: hints, check, solve, steps ----------
 function mistakes(): number[] {
@@ -548,7 +600,12 @@ for (const v of VARIANTS) variantSel.append(new Option(VARIANT_LABELS[v], v));
 variantSel.value = settings.variant;
 fillLevels();
 levelSel.onchange = () => { settings.level = levelSel.value as Level; persist(); };
-variantSel.onchange = () => { settings.variant = variantSel.value as Variant; persist(); fillLevels(); void newPuzzle(); };
+variantSel.onchange = () => {
+  settings.variant = variantSel.value as Variant; persist(); fillLevels();
+  // While typing a puzzle in, a new shape just gives a new blank board.
+  if (editing) { if (canEnter(settings.variant)) startEntry(false); else { status('Killer cages can\'t be typed in, so here is a new Killer puzzle.', 'bad'); editing = false; void newPuzzle(); } return; }
+  void newPuzzle();
+};
 $('new').onclick = () => void newPuzzle();
 $('restart').onclick = () => {
   stopPlay();
@@ -557,7 +614,9 @@ $('restart').onclick = () => {
   commit('Restart');
   status(statusLine());
 };
-$('edit').onclick = () => (editing ? finishEditing() : startEditing());
+$('own').onclick = () => void askEnterOwn();
+$('entry-done').onclick = () => void finishEntry();
+$('entry-cancel').onclick = cancelEntry;
 $('hint').onclick = doHint;
 $('check').onclick = doCheck;
 $('solve').onclick = doSolve;
@@ -598,7 +657,7 @@ window.addEventListener('keydown', (e) => {
   if (ctrl) return;
   if (e.altKey) {
     if (e.code === 'KeyN') { e.preventDefault(); void newPuzzle(); }
-    else if (e.code === 'KeyE') { e.preventDefault(); $('edit').click(); }
+    else if (e.code === 'KeyE') { e.preventDefault(); void askEnterOwn(); }
     return;
   }
   // Digits by physical key, so Shift+digit (a note) works on every keyboard layout.
@@ -658,7 +717,7 @@ function resume(): boolean {
     loadPuzzle(givens, 'Resumed', s.values.map((v, i) => (s.givens[i] ? 0 : v)), raw.ms || 0, variant, raw.cages ?? []);
     snap.notes = s.notes; snap.elims = s.elims;
     history.reset(snap, 'Resumed');
-    if (raw.editing) startEditing();
+    if (raw.editing) startEntry(true);
     timer.pause();
     afterChange();
     return true;

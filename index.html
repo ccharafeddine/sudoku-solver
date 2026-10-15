@@ -29,6 +29,10 @@
     </header>
     <main>
       <section class="left" aria-label="Puzzle">
+        <div id="entry-bar" class="card entry-bar hidden" role="status" aria-live="polite">
+          <p id="entry-text"></p>
+          <div class="row"><button id="entry-cancel" title="Go back to the puzzle you had">Cancel</button><button id="entry-done" class="go" title="Lock in your numbers and check the puzzle">Done</button></div>
+        </div>
         <div class="play">
           <div class="board-wrap">
             <div id="board"></div>
@@ -77,7 +81,7 @@
             <select id="level" aria-label="Difficulty"></select>
             <button id="new" class="go" title="Make a new puzzle (Alt+N)">New puzzle</button>
             <button id="restart" title="Clear your digits and start this puzzle again">Restart</button>
-            <button id="edit" aria-pressed="false" title="Type in your own puzzle (Alt+E)">Edit puzzle</button>
+            <button id="own" title="Type in a puzzle from a book or newspaper (Alt+E)">✎ Enter my own</button>
           </div>
         </div>
         <div class="card" id="solve-card">
@@ -139,6 +143,11 @@
       <p class="about">Sudoku Solver <span id="version" class="mono"></span>. Play, solve and learn 9x9 Sudoku, with hints that explain every step. Works offline.</p>
       <div class="row"><button id="settings-close" class="primary">Done</button></div>
     </dialog>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+      <h2 id="confirm-title">Start a new puzzle?</h2>
+      <p id="confirm-text">This clears the board, and the numbers you've written will be gone.</p>
+      <div class="row"><button id="confirm-no">Keep playing</button><button id="confirm-yes" class="primary">Yes, clear it</button></div>
+    </dialog>
     <dialog id="help-dialog" aria-labelledby="help-title">
       <h2 id="help-title">Controls and shortcuts</h2>
       <table class="keys">
@@ -152,7 +161,7 @@
         <tr><td><kbd>C</kbd></td><td>Check your digits</td></tr>
         <tr><td><kbd>Space</kbd>, <kbd>[</kbd> / <kbd>]</kbd></td><td>Play or pause the steps / step back or forward</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
-        <tr><td><kbd>Alt</kbd>+<kbd>N</kbd> / <kbd>Alt</kbd>+<kbd>E</kbd></td><td>New puzzle / edit puzzle</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>N</kbd> / <kbd>Alt</kbd>+<kbd>E</kbd></td><td>New puzzle / Enter my own puzzle</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>Close a hint, stop Fill many, or unpick the square</td></tr>
         <tr><td><kbd>?</kbd></td><td>This help</td></tr>
       </table>

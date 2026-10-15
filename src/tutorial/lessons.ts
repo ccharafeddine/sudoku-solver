@@ -149,7 +149,7 @@ export const TOUR: TourStep[] = [
   { id: 'undo', target: '#undo-row', title: 'Undo and timer',
     body: 'Undo (Ctrl+Z) and Redo (Ctrl+Y) step back and forward. The timer counts while you play and stops when you finish. Pause hides the puzzle.' },
   { id: 'puzzle', target: '#puzzle-card', title: 'New puzzles',
-    body: 'Pick a puzzle type (Classic, Diagonal, Killer or a small 6x6 or 4x4) and how hard you want it, from Easy to Fiendish, then press New puzzle. Every puzzle has exactly one answer. Edit puzzle lets you type in one from a book or newspaper.' },
+    body: 'Pick a puzzle type (Classic, Diagonal, Killer or a small 6x6 or 4x4) and how hard you want it, from Easy to Fiendish, then press New puzzle. Every puzzle has exactly one answer. Enter my own lets you type in one from a book or newspaper.' },
   { id: 'hint', target: '#hint', title: 'Hints',
     body: 'Stuck? Hint shows the next step a person would take. It names the trick, like "Hidden single", outlines the squares involved, and explains it in plain words. Press it again to do the step.' },
   { id: 'steps', target: '#steps-card', title: 'Watch it solved',
