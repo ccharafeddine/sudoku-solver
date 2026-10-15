@@ -22,6 +22,8 @@
 
 <p align="center"><img src="docs/screenshot-main.png" width="860" alt="An Easy puzzle mid-game with a Hidden single hint outlined on the grid and explained in the Steps panel" /></p>
 
+<p align="center"><img src="docs/screenshot-own.png" width="860" alt="Enter my own: the Done bar counting numbers, with two clashing 5s in red" /></p>
+
 <p align="center"><img src="docs/screenshot-killer.png" width="420" alt="A solved Killer puzzle with dashed cages and sums" /> <img src="docs/screenshot-mini6.png" width="420" alt="A solved Mini 6x6 puzzle" /></p>
 <p align="center"><img src="docs/screenshot-steps.png" width="860" alt="An Expert puzzle with auto notes, part-way through the step-by-step playback" /></p>
 
@@ -33,7 +35,7 @@
 
 <table align="center"><tr>
   <td width="40%"><img src="docs/screenshot-lesson.png" alt="The Pointing lesson: a real puzzle with notes, the pattern outlined and a question" /><p align="center"><sub>Lessons: rules and tricks, each with a question</sub></p></td>
-  <td width="40%"><img src="docs/screenshot-tour.png" alt="The spotlight tour pointing at the Hint button" /><p align="center"><sub>A spotlight tour of every control</sub></p></td>
+  <td width="40%"><img src="docs/screenshot-tour-demo.png" alt="The tour's Fill many step, with a few squares filled in as a live example" /><p align="center"><sub>A tour with live examples on the board</sub></p></td>
   <td width="20%"><img src="docs/screenshot-mobile.png" alt="Phone layout in Neon dark" /><p align="center"><sub>Phones and touch</sub></p></td>
 </tr></table>
 
@@ -43,8 +45,10 @@
 - **Five puzzle shapes**: Classic 9x9, **Diagonal** (both long diagonals also hold 1 to 9 once), **Killer** (dashed cages with a sum in the corner; the digits in a cage add up to it and never repeat), and **Mini 6x6** and **Mini 4x4** for younger players. Pick one in the Puzzle card.
 - A grid that scales to the window and stays square. Click a square (or move with the arrow keys), then type a digit, use the number pad, or click the **digit buttons**. Each button shows how many of that digit are still missing.
 - **Given digits** (the puzzle) are bold and locked; your digits are coloured and can be changed.
-- **Pencil marks**: Pencil mode (<kbd>N</kbd>) or <kbd>Shift</kbd>+digit writes small notes. **Auto notes** fills in every digit that still fits and keeps them up to date; you can still cross marks out by hand. Placing a digit removes the notes it rules out (can be switched off in Settings).
-- **Paint mode** (<kbd>P</kbd>): pick a digit once, then click squares to fill them fast (or paint notes with Pencil on).
+- The everyday controls stay in view: the number buttons, **Erase**, **Undo**, **Hint**, **Check** and **Solve**. The extras sit in a **Tools** card, each with an icon, a one-line explanation and a tooltip:
+  - **Notes** (<kbd>N</kbd>, or <kbd>Shift</kbd>+digit): write small reminder digits instead of answers.
+  - **Auto notes**: show every digit that still fits in each empty square, kept up to date; you can still cross notes out by hand. Placing a digit removes the notes it rules out (can be switched off in Settings).
+  - **Fill many** (<kbd>P</kbd>): pick a digit once, then click squares to fill them fast (or write it as a note with Notes on).
 - **Conflict highlighting**: a digit that repeats in a row, column, box (or diagonal), or a full cage with the wrong sum, turns red straight away.
 - **Show mistakes** (Settings, on by default): a digit that doesn't match the answer is marked at once. If the puzzle has no answer or more than one, only clashes are marked.
 - **Guides**: the picked square's row, column and box are lightly shaded, and every square with the same digit (and that digit in notes) lights up. Can be switched off in Settings.
@@ -54,7 +58,7 @@
 
 **Puzzles**
 - **New puzzle** at Easy, Medium, Hard, Expert or **Fiendish** (Classic and Diagonal have all five; Killer has Medium and Hard; Mini 6x6 has Easy and Medium; Mini 4x4 has Easy). Every puzzle has exactly one answer, and its level is the hardest trick the human-style solver needed (see below), not a clue count. Puzzles are symmetric, like printed ones.
-- **Edit puzzle** types in one from a book or newspaper; the app checks it has exactly one answer and rates it.
+- **✎ Enter my own** types in a puzzle from a book or newspaper (Classic, Diagonal, 6x6 or 4x4). It asks first if that would wipe your game, then clears the board in the chosen shape and shows a bar: *Type the numbers from your puzzle, then press Done.* The bar counts your numbers and clashing squares turn red as you type. **Done** checks there are enough numbers and exactly one answer (and says plainly if there is none or more than one); then the numbers lock in, the puzzle is rated, and Hint, Check, Solve and Play all work. **Cancel** goes back to the puzzle you had. Killer can't be typed in, because drawing cages by hand would need a separate cage editor; Killer puzzles can still be loaded from a share link.
 - **Load and share**: paste 81 digits (0 or `.` for blanks; spaces, line breaks and `|` `+` `-` grid lines are ignored), a pretty-printed grid, or a share link. **Copy puzzle** gives the 81-character string, **Copy as grid** a readable 9x9 block, and **Copy share link** a URL with the puzzle and your progress (`#p=<81 givens>&e=<81 entered>`).
 
 **Help when you want it**
@@ -125,19 +129,19 @@ The first time you open the app, a welcome card offers **Learn Sudoku**, **Tour 
 
 Lessons 6 to 8 use the first real example of that trick found in the bundled puzzles, with the pattern outlined and the squares that lose a note marked, and explain it after you answer.
 
-**App tour.** A spotlight steps through ten parts of the app (the grid, digit buttons, notes and paint, undo and timer, new puzzles, hints, steps, history, load and share, settings). Clicks inside the spotlight reach the real control; ← → move, <kbd>Esc</kbd> or clicking the dimmed area closes it. The card parks beside large targets and above or below small ones, always on screen, and docks to the bottom on phones. Touch screens get "tap" wording.
+**App tour.** A spotlight steps through fourteen parts of the app. The steps for **Notes**, **Auto notes**, **Fill many**, **Show mistakes**, **Enter my own**, **Hint** and **Steps** each play a small live example on your board (notes appear in a square, auto notes fill in, a few squares get filled, a wrong number turns red, the Done bar appears, a hint is outlined, the first steps play out), and your board, tools and timer are put back exactly when you move on or close the tour. The examples never touch History or your saved game. Clicks inside the spotlight reach the real control; ← → move, <kbd>Esc</kbd> or clicking the dimmed area closes it. The card parks beside large targets and above or below small ones, always on screen, and docks to the bottom on phones. Touch screens get "tap" wording.
 
 ## Controls and shortcuts
 
 | Control | What it does |
 |---|---|
 | Click a square, or <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | Pick a square (arrows wrap around the edges) |
-| <kbd>1</kbd>–<kbd>9</kbd>, number pad, or the digit buttons | Write a digit (typing the same digit again erases it); with Pencil on, write a note |
-| <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> | Write a note, even with Pencil off |
+| <kbd>1</kbd>–<kbd>9</kbd>, number pad, or the digit buttons | Write a digit (typing the same digit again erases it); with Notes on, write a note |
+| <kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd> | Write a note, even with Notes off |
 | <kbd>Delete</kbd>, <kbd>Backspace</kbd>, <kbd>0</kbd>, or **Erase** | Erase the square (or its notes) |
-| <kbd>N</kbd> / **Pencil** | Notes mode on or off |
+| <kbd>N</kbd> / **Notes** | Notes on or off |
 | **Auto notes** | Show every digit that still fits, kept up to date |
-| <kbd>P</kbd> / **Paint** | Paint mode: pick a digit, then click squares |
+| <kbd>P</kbd> / **Fill many** | Pick a digit, then click squares to fill them |
 | <kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd> (or <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd>) | Undo / redo |
 | **History** entries | Jump to any point, either direction |
 | <kbd>H</kbd> / **Hint** | Show the next step; press again to do it |
@@ -147,10 +151,10 @@ Lessons 6 to 8 use the first real example of that trick found in the bundled puz
 | <kbd>[</kbd> / <kbd>]</kbd>, **‹** / **›**, **⏮** | Step back / forward / to the first step |
 | **Speed** slider | Step playback pace (about 2.2 s down to under 0.1 s a step) |
 | <kbd>Alt</kbd>+<kbd>N</kbd> / **New puzzle** | New puzzle at the chosen level |
-| <kbd>Alt</kbd>+<kbd>E</kbd> / **Edit puzzle** | Type in your own puzzle |
+| <kbd>Alt</kbd>+<kbd>E</kbd> / **✎ Enter my own** | Type in a puzzle from a book or newspaper |
 | **Restart** | Clear your digits and notes |
 | **Pause** | Stop the clock and hide the grid |
-| <kbd>Esc</kbd> | Close a hint, stop painting, or unpick the square; closes lessons and dialogs |
+| <kbd>Esc</kbd> | Close a hint, stop Fill many, or unpick the square; closes lessons and dialogs |
 | <kbd>?</kbd> | Shortcut sheet |
 | 🎓 / ⚙ | Tutorial menu / Settings |
 
@@ -216,7 +220,7 @@ brand/                  logo source, social card source, asset inventory
 
 ## Testing
 
-`npm test` runs Vitest in Node. The suites cover the board model, the instant solver (unique, multiple, none, clashes, dead squares, hard puzzles), every logical technique's soundness on 170 puzzles, the rating and generator at every level (including the seed fallback and disguise), history jumps, share links, the timer, every lesson's answer, tour geometry, theme tokens (every skin defines every token; select and text contrast is WCAG AA in all eight variants), branding, and the no-shift layout rules. CI runs lint, tests and the build on every push.
+`npm test` runs Vitest in Node. The suites cover the board model, the instant solver (unique, multiple, none, clashes, dead squares, hard puzzles), every logical technique's soundness on 170 puzzles, the rating and generator at every level (including the seed fallback and disguise), history jumps, share links, the timer, every lesson's answer, tour geometry and its live examples, the Enter my own checks, theme tokens (every skin defines every token; select and text contrast is WCAG AA in all eight variants), branding, and the no-shift layout rules. CI runs lint, tests and the build on every push.
 
 ## Releasing
 
