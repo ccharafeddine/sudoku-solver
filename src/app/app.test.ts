@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { History, blankSnap } from './history';
-import { fromHash, importText, shareUrl, toHash } from './share';
+import { decodeCages, fromHash, importText, shareUrl, toHash } from './share';
+import { makeCages, seeded } from '../sudoku/generator';
+import { randomSolution } from '../sudoku/solver';
 import { Timer, formatTime, stepDelay } from './timer';
 import { parseGrid } from '../sudoku/board';
 import { updatesEnabled, compareVersions, REPO } from './update';
@@ -34,7 +36,7 @@ describe('import and export', () => {
     const g = parseGrid(P)!, e = new Array(81).fill(0); e[2] = 4;
     const h = toHash(g, e);
     expect(h).toMatch(/^#p=[0-9]{81}&e=[0-9]{81}$/);
-    expect(fromHash(h)).toEqual({ givens: g, entered: e });
+    expect(fromHash(h)).toEqual({ variant: 'classic', givens: g, entered: e, cages: [] });
     expect(toHash(g)).not.toContain('&e=');
     expect(shareUrl('https://x.test/app/#old', g)).toBe('https://x.test/app/' + toHash(g));
   });
@@ -43,6 +45,21 @@ describe('import and export', () => {
     expect(fromHash(toHash(g, e))!.entered![0]).toBe(0);
     expect(fromHash('#p=123')).toBeNull();
     expect(importText('hello')).toBeNull();
+  });
+  it('round-trips every shape, including Killer cages', () => {
+    const sol = randomSolution(seeded(2)), cages = makeCages(sol, seeded(3));
+    const empty = new Array(81).fill(0);
+    const k = fromHash(toHash(empty, undefined, 'killer', cages))!;
+    expect(k.variant).toBe('killer');
+    expect(k.cages.map((c) => [c.sum, c.cells])).toEqual(cages.map((c) => [c.sum, c.cells]));
+    const m4 = [1, 0, 0, 0, 0, 0, 3, 0, 0, 4, 0, 0, 0, 0, 0, 2];
+    expect(fromHash(toHash(m4, undefined, 'mini4'))).toMatchObject({ variant: 'mini4', givens: m4 });
+    expect(fromHash('#p=' + '0'.repeat(81) + '&v=killer')).toBeNull(); // cages missing
+    expect(fromHash('#p=' + '0'.repeat(81) + '&v=jigsaw')).toBeNull();
+    expect(importText('1.......' + '.'.repeat(8))!.variant).toBe('mini4');
+    expect(importText('.'.repeat(36))!.variant).toBe('mini6');
+    expect(importText(P, 'diagonal')!.variant).toBe('diagonal');
+    expect(decodeCages('zz'.repeat(81), '5')).toBeNull();
   });
   it('imports links, strings and pretty grids', () => {
     expect(importText(P)!.givens).toEqual(parseGrid(P));
