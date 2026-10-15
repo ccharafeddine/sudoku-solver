@@ -279,8 +279,10 @@ html { scrollbar-gutter: stable; }
 #pad button.done { opacity: 0.4; }
 .pad-erase { margin: 8px 0 0; } .pad-erase button { width: 100%; }
 .tools { display: grid; gap: 9px; }
-.tools .check { justify-content: space-between; } .tools .check kbd { margin-left: auto; }
-.tools .check input { order: 2; }
+.tool { display: grid; grid-template-columns: 22px 1fr auto; gap: 9px; align-items: center; cursor: pointer; font-size: 0.92rem; }
+.tool svg { width: 20px; height: 20px; color: var(--text-muted); }
+.tool span { line-height: 1.25; } .tool small { display: block; color: var(--text-muted); font-size: 0.78rem; }
+.tool kbd { font-size: 0.7rem; }
 #undo-row .row { margin: 0 0 8px; } #undo-row .row:last-child { margin: 0; }
 #undo-row .row button { flex: 1; }
 .timer { font-size: 1.5rem; font-variant-numeric: tabular-nums; flex: 1; letter-spacing: 0.02em; }

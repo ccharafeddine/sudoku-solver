@@ -40,10 +40,23 @@
               <div id="pad" role="group" aria-label="Digits"></div>
               <div class="row pad-erase"><button id="erase" title="Erase the square (Delete)">Erase</button></div>
             </div>
-            <div class="card tools" id="note-tools" role="group" aria-label="Note tools">
-              <label class="check"><input type="checkbox" id="pencil" /> Pencil <kbd>N</kbd></label>
-              <label class="check"><input type="checkbox" id="auto-notes" /> Auto notes</label>
-              <label class="check"><input type="checkbox" id="paint" /> Paint <kbd>P</kbd></label>
+            <div class="card tools" id="note-tools" role="group" aria-labelledby="tools-title">
+              <h2 id="tools-title">Tools</h2>
+              <label class="tool" id="tool-notes" title="Notes (N): digits you type go in as small reminders, not answers">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 7l3 3"/></svg>
+                <span><b>Notes</b> <kbd>N</kbd><small>Write small reminder digits</small></span>
+                <input type="checkbox" id="pencil" role="switch" />
+              </label>
+              <label class="tool" id="tool-auto" title="Auto notes: fill every square with the digits that still fit">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.2L18 9l-4.2 1.8L12 15l-1.8-4.2L6 9l4.2-1.8z"/><path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/></svg>
+                <span><b>Auto notes</b><small>Show every digit that still fits</small></span>
+                <input type="checkbox" id="auto-notes" role="switch" />
+              </label>
+              <label class="tool" id="tool-paint" title="Fill many (P): pick a digit once, then click squares to fill them">
+                <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="14" height="6" rx="1.5"/><path d="M18 6h2v5h-8v3"/><rect x="10.5" y="14" width="3" height="7" rx="1"/></svg>
+                <span><b>Fill many</b> <kbd>P</kbd><small>Pick a digit, then tap squares</small></span>
+                <input type="checkbox" id="paint" role="switch" />
+              </label>
             </div>
             <div class="card" id="undo-row">
               <div class="row">
@@ -130,17 +143,17 @@
       <h2 id="help-title">Controls and shortcuts</h2>
       <table class="keys">
         <tr><td>Click a square</td><td>Pick it; then type or click a digit</td></tr>
-        <tr><td><kbd>1</kbd>–<kbd>9</kbd> (or the number pad)</td><td>Write a digit; with Pencil on, write a note</td></tr>
-        <tr><td><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd></td><td>Write a note, even with Pencil off</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>9</kbd> (or the number pad)</td><td>Write a digit; with Notes on, write a note</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd></td><td>Write a note, even with Notes off</td></tr>
         <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd> / <kbd>0</kbd></td><td>Erase the square</td></tr>
         <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></td><td>Move around the grid</td></tr>
-        <tr><td><kbd>N</kbd> / <kbd>P</kbd></td><td>Pencil on or off / Paint on or off</td></tr>
+        <tr><td><kbd>N</kbd> / <kbd>P</kbd></td><td>Notes on or off / Fill many on or off</td></tr>
         <tr><td><kbd>H</kbd></td><td>Hint; press again to do the step</td></tr>
         <tr><td><kbd>C</kbd></td><td>Check your digits</td></tr>
         <tr><td><kbd>Space</kbd>, <kbd>[</kbd> / <kbd>]</kbd></td><td>Play or pause the steps / step back or forward</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
         <tr><td><kbd>Alt</kbd>+<kbd>N</kbd> / <kbd>Alt</kbd>+<kbd>E</kbd></td><td>New puzzle / edit puzzle</td></tr>
-        <tr><td><kbd>Esc</kbd></td><td>Close a hint, stop painting, or unpick the square</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Close a hint, stop Fill many, or unpick the square</td></tr>
         <tr><td><kbd>?</kbd></td><td>This help</td></tr>
       </table>
       <div class="row"><button id="tour">Tutorial…</button><button id="help-appearance">Settings…</button><button id="help-close" class="primary">Close</button></div>

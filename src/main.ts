@@ -287,7 +287,7 @@ function toggleNote(i: number, d: number) {
 
 function digitInput(d: number, asNote: boolean) {
   if (d > geo.n) { status(`This puzzle only uses 1 to ${geo.n}.`); return; }
-  if (paint) { brush = brush === d ? 0 : d; status(brush ? `Painting ${d}${pencil ? ' notes' : ''}: click squares to fill them. Press Esc to stop.` : 'Pick a digit to paint with.'); render(); return; }
+  if (paint) { brush = brush === d ? 0 : d; status(brush ? `Fill many: ${d}${pencil ? ' as a note' : ''}. Click squares to fill them. Press Esc to stop.` : 'Fill many: pick a digit first.'); render(); return; }
   if (selected < 0) { status('Pick a square first.'); return; }
   if (asNote || (pencil && !editing)) toggleNote(selected, d); else setDigit(selected, snap.values[selected] === d && !editing ? 0 : d);
 }
@@ -516,7 +516,7 @@ async function togglePlay() {
 // ---------- controls ----------
 $('erase').onclick = erase;
 $<HTMLInputElement>('pencil').onchange = (e) => { pencil = (e.target as HTMLInputElement).checked; render(); };
-$<HTMLInputElement>('paint').onchange = (e) => { paint = (e.target as HTMLInputElement).checked; if (!paint) brush = 0; status(paint ? 'Paint is on: pick a digit, then click squares to fill them.' : statusLine()); render(); };
+$<HTMLInputElement>('paint').onchange = (e) => { paint = (e.target as HTMLInputElement).checked; if (!paint) brush = 0; status(paint ? 'Fill many is on: pick a digit, then click squares to fill them.' : statusLine()); render(); };
 $<HTMLInputElement>('auto-notes').onchange = (e) => { settings.autoNotes = (e.target as HTMLInputElement).checked; persist(); render(); };
 $('undo').onclick = undo;
 $('redo').onclick = redo;
