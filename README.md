@@ -21,6 +21,8 @@
 </p>
 
 <p align="center"><img src="docs/screenshot-main.png" width="860" alt="An Easy puzzle mid-game with a Hidden single hint outlined on the grid and explained in the Steps panel" /></p>
+
+<p align="center"><img src="docs/screenshot-killer.png" width="420" alt="A solved Killer puzzle with dashed cages and sums" /> <img src="docs/screenshot-mini6.png" width="420" alt="A solved Mini 6x6 puzzle" /></p>
 <p align="center"><img src="docs/screenshot-steps.png" width="860" alt="An Expert puzzle with auto notes, part-way through the step-by-step playback" /></p>
 
 <table align="center"><tr>
@@ -38,18 +40,20 @@
 ## Features
 
 **Playing**
-- A **9x9 grid** that scales to the window and stays square. Click a square (or move with the arrow keys), then type a digit, use the number pad, or click the **digit buttons**. Each button shows how many of that digit are still missing.
+- **Five puzzle shapes**: Classic 9x9, **Diagonal** (both long diagonals also hold 1 to 9 once), **Killer** (dashed cages with a sum in the corner; the digits in a cage add up to it and never repeat), and **Mini 6x6** and **Mini 4x4** for younger players. Pick one in the Puzzle card.
+- A grid that scales to the window and stays square. Click a square (or move with the arrow keys), then type a digit, use the number pad, or click the **digit buttons**. Each button shows how many of that digit are still missing.
 - **Given digits** (the puzzle) are bold and locked; your digits are coloured and can be changed.
 - **Pencil marks**: Pencil mode (<kbd>N</kbd>) or <kbd>Shift</kbd>+digit writes small notes. **Auto notes** fills in every digit that still fits and keeps them up to date; you can still cross marks out by hand. Placing a digit removes the notes it rules out (can be switched off in Settings).
 - **Paint mode** (<kbd>P</kbd>): pick a digit once, then click squares to fill them fast (or paint notes with Pencil on).
-- **Conflict highlighting**: a digit that repeats in a row, column or box turns both squares red straight away.
+- **Conflict highlighting**: a digit that repeats in a row, column, box (or diagonal), or a full cage with the wrong sum, turns red straight away.
+- **Show mistakes** (Settings, on by default): a digit that doesn't match the answer is marked at once. If the puzzle has no answer or more than one, only clashes are marked.
 - **Guides**: the picked square's row, column and box are lightly shaded, and every square with the same digit (and that digit in notes) lights up. Can be switched off in Settings.
 - **Undo/redo** and a **History timeline**: every action is listed; click any entry to jump there, backwards or forwards.
 - A **timer** that counts only while you play: it pauses when the tab is hidden or with **Pause** (which also hides the grid), and stops when you finish.
 - Your game, notes, history position and time are saved in the browser and resumed next time.
 
 **Puzzles**
-- **New puzzle** at Easy, Medium, Hard or Expert. Every puzzle has exactly one answer, and its level is the hardest trick the human-style solver needed (see below), not a clue count. Puzzles are symmetric, like printed ones.
+- **New puzzle** at Easy, Medium, Hard, Expert or **Fiendish** (Classic and Diagonal have all five; Killer has Medium and Hard; Mini 6x6 has Easy and Medium; Mini 4x4 has Easy). Every puzzle has exactly one answer, and its level is the hardest trick the human-style solver needed (see below), not a clue count. Puzzles are symmetric, like printed ones.
 - **Edit puzzle** types in one from a book or newspaper; the app checks it has exactly one answer and rates it.
 - **Load and share**: paste 81 digits (0 or `.` for blanks; spaces, line breaks and `|` `+` `-` grid lines are ignored), a pretty-printed grid, or a share link. **Copy puzzle** gives the 81-character string, **Copy as grid** a readable 9x9 block, and **Copy share link** a URL with the puzzle and your progress (`#p=<81 givens>&e=<81 entered>`).
 
@@ -66,6 +70,8 @@
 - An interactive **tutorial** (rules and tricks) and an app **tour**, a shortcut sheet, and an error banner with Reload.
 - A wide layout whose controls stay put: fixed panel heights, inner scrolling, pinned playback controls and a reserved scrollbar gutter, so nothing shifts as hints, steps and history change. It folds to one column on phones and tablets.
 - All searching runs in a **Web Worker**, so the page never stalls.
+
+**Why no 16x16 or Jigsaw?** 16x16 needs letters as digits, a 16-button pad, and generating and checking a unique 16x16 puzzle in the browser is much slower. Jigsaw needs an editor for odd-shaped regions, and random regions often can't be filled at all. Both were left out to keep the app fast and simple.
 
 ## Download
 
@@ -170,14 +176,20 @@ Lessons 6 to 8 use the first real example of that trick found in the bundled puz
 | Hard | X-Wing | A digit's spots in two rows line up in two columns |
 | Expert | XY-Wing | Three two-digit squares that force a digit into one of two places |
 | Expert | Swordfish | The X-Wing with three rows and columns |
+| Fiendish | Jellyfish | The X-Wing with four rows and columns |
+| Fiendish | XYZ-Wing | Like the XY-Wing, but the middle square has three digits |
+| Fiendish | W-Wing | Two matching two-digit squares tied by a strong link |
+| Fiendish | Simple colouring | Follow one digit's either-or links in two colours; a clash or a square seeing both colours rules it out |
+| Fiendish | Unique rectangle | Four squares that would allow two answers, so one digit must go (Classic only) |
+| Medium (Killer) | Cage sum | Only some digits can add up to a cage's sum |
 
 Every step records its technique, the pattern squares, the groups involved, the digits, the placement or eliminations, and a plain-words explanation built from the actual squares (`r3c5` means row 3, column 5). Tests replay every step of 170 puzzles against the true answer: a placement must match it and an elimination must never remove it, and every technique must turn up.
 
-**Difficulty** is the level of the hardest technique the puzzle needs. A puzzle that these techniques can't finish is shown as **Fiendish: needs guessing** (it can be typed in or loaded, but the generator never makes one).
+**Difficulty** is the level of the hardest technique the puzzle needs. A puzzle that these techniques can't finish is shown as **Beyond Fiendish: needs guessing** (it can be typed in or loaded, but the generator never makes one).
 
 ### The generator
 
-`src/sudoku/generator.ts` fills a random grid, then removes digits in mirror-image pairs, keeping a removal only while the puzzle still has exactly one solution and is no harder than the level asked for. The result is kept if its rating matches. On this machine one attempt takes about 3 ms; Easy and Medium come almost at once and Expert usually within a few hundred milliseconds. If the time budget (1.5 s) runs out, it takes a bundled puzzle of that level (`src/sudoku/seeds.ts`, all re-rated by the tests) and disguises it: relabelled digits, shuffled rows within bands, bands, columns within stacks, stacks, and maybe a flip. None of those changes the techniques a puzzle needs.
+`src/sudoku/generator.ts` fills a random grid, then removes digits in mirror-image pairs, keeping a removal only while the puzzle still has exactly one solution and is no harder than the level asked for. The result is kept if its rating matches. On this machine one attempt takes about 3 ms; Easy and Medium come almost at once and Expert usually within a few hundred milliseconds. Diagonal, Killer and Mini puzzles use the same search with their extra rules (Killer first cuts the answer into cages of 2 to 4 touching squares). If the time budget (1.5 s, 3 s for Killer) runs out, it takes a bundled puzzle of that level (`src/sudoku/seeds.ts`, all re-rated by the tests) and disguises it: relabelled digits, shuffled rows within bands, bands, columns within stacks, stacks, and maybe a flip. None of those changes the techniques a puzzle needs.
 
 ### Layout
 
