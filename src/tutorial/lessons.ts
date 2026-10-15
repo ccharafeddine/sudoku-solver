@@ -128,38 +128,51 @@ export function techniqueChoices(s: Step): string[] {
 export function checkDigit(l: Lesson, d: number): boolean { return l.check.kind === 'digit' && l.check.answer === d; }
 export function checkCell(l: Lesson, i: number): boolean { return l.check.kind === 'cell' && l.check.answer === i; }
 
+/** A small live example the app plays on the board during a tour step, then undoes. */
+export type TourDemo = 'notes' | 'auto' | 'paint' | 'mistakes' | 'hint' | 'steps' | 'own';
+
 export interface TourStep {
   id: string;
-  /** CSS selector of the element to spotlight. */
+  /** CSS selector of the element(s) to spotlight; a list lights up all of them. */
   target: string;
   title: string;
   body: string;
   /** Wording for touch screens, when it differs. */
   touchBody?: string;
+  /** A live example shown on the board while this step is open. */
+  demo?: TourDemo;
 }
 
 export const TOUR: TourStep[] = [
   { id: 'board', target: '#board', title: 'The puzzle',
-    body: 'This is the puzzle. Dark digits were there from the start and can\'t change. Click a square to pick it, then type a digit 1 to 9. Squares that break a rule turn red.',
-    touchBody: 'This is the puzzle. Dark digits were there from the start and can\'t change. Tap a square to pick it, then tap a digit below. Squares that break a rule turn red.' },
-  { id: 'pad', target: '#pad', title: 'Digit buttons',
-    body: 'No keyboard? Use these buttons to fill in the square you picked. The small number on each button says how many of that digit are still missing. Erase clears a square.' },
-  { id: 'notes', target: '#note-tools', title: 'Tools',
-    body: 'Notes (N) writes small reminder digits instead of answers. Auto notes fills in every digit that still fits. Fill many (P) lets you pick a digit once, then click lots of squares to fill them fast.' },
+    body: 'This is the puzzle. Dark numbers were there from the start and can\'t change. Click a square to pick it, then type a number. Squares that break a rule turn red.',
+    touchBody: 'This is the puzzle. Dark numbers were there from the start and can\'t change. Tap a square to pick it, then tap a number below. Squares that break a rule turn red.' },
+  { id: 'pad', target: '#pad-card', title: 'Number buttons',
+    body: 'No keyboard? Tap these to fill in the square you picked. The small number says how many of that number are still missing. Erase clears a square.' },
+  { id: 'notes', target: '#board, #tool-notes', title: 'Notes', demo: 'notes',
+    body: 'Not sure yet? Turn on Notes (or press N) and the numbers you type go in small, as reminders. See the little numbers in the picked square? Turn Notes off to write real answers again.' },
+  { id: 'auto', target: '#board, #tool-auto', title: 'Auto notes', demo: 'auto',
+    body: 'Auto notes writes every number that could still go in each empty square, for you. Watch the board fill up with small numbers. They update as you play.' },
+  { id: 'paint', target: '#board, #tool-paint', title: 'Fill many', demo: 'paint',
+    body: 'Fill many (or press P) is for when you know where lots of one number go. Pick the number once, then click squares to fill them. Here it put the same number in a few squares.' },
+  { id: 'mistakes', target: '#board', title: 'Show mistakes', demo: 'mistakes',
+    body: 'If you write a number that isn\'t the right answer, it turns red straight away, like this one. Don\'t want that help? Switch off Show mistakes in Settings.' },
   { id: 'undo', target: '#undo-row', title: 'Undo and timer',
     body: 'Undo (Ctrl+Z) and Redo (Ctrl+Y) step back and forward. The timer counts while you play and stops when you finish. Pause hides the puzzle.' },
   { id: 'puzzle', target: '#puzzle-card', title: 'New puzzles',
-    body: 'Pick a puzzle type (Classic, Diagonal, Killer or a small 6x6 or 4x4) and how hard you want it, from Easy to Fiendish, then press New puzzle. Every puzzle has exactly one answer. Enter my own lets you type in one from a book or newspaper.' },
-  { id: 'hint', target: '#hint', title: 'Hints',
-    body: 'Stuck? Hint shows the next step a person would take. It names the trick, like "Hidden single", outlines the squares involved, and explains it in plain words. Press it again to do the step.' },
-  { id: 'steps', target: '#steps-card', title: 'Watch it solved',
-    body: 'Press Play to watch the puzzle solved the way a person would, one trick at a time. Every step is listed, so you can click any of them to jump there, forwards or back. The speed slider sets how fast.' },
+    body: 'Pick a puzzle type (Classic, Diagonal, Killer or a small 6x6 or 4x4) and how hard you want it, from Easy to Fiendish, then press New puzzle. Every puzzle has exactly one answer.' },
+  { id: 'own', target: '#own, #entry-bar, #board', title: 'Enter my own', demo: 'own',
+    body: 'Got a puzzle from a book or newspaper? Press Enter my own. The board goes blank, you type in its numbers, then press Done. The app checks it and then helps you solve it.' },
+  { id: 'hint', target: '#board, #solve-card', title: 'Hints', demo: 'hint',
+    body: 'Stuck? Hint shows the next step a person would take. It names the trick, outlines the squares that matter, and explains why in plain words. Press it again to do the step.' },
+  { id: 'steps', target: '#board, #steps-card', title: 'Watch it solved', demo: 'steps',
+    body: 'Press Play to watch the puzzle solved one step at a time, just like a person would. Here are the first few steps. Click any step in the list to jump there. The slider sets the speed.' },
   { id: 'history', target: '#history-card', title: 'Your history',
     body: 'Every move you make is listed here. Click any of them to jump back to that moment, then click a later one to jump forward again.' },
   { id: 'io', target: '#io-card', title: 'Share and load',
-    body: 'Paste a puzzle here as 81 digits (use 0 or . for empty squares) and press Load. Or copy a link to share the puzzle, and your progress, with a friend.' },
+    body: 'Paste a puzzle here as a row of numbers (0 or . for empty squares) and press Load. Or copy a link to share the puzzle, and your progress, with a friend.' },
   { id: 'settings', target: '#settings', title: 'Settings',
-    body: 'The gear opens Settings. Pick one of four looks and light, dark or match your computer. The ? button lists every keyboard shortcut.' },
+    body: 'The gear opens Settings. Pick one of four looks, light or dark, and switch Show mistakes on or off. The ? button lists every keyboard shortcut.' },
 ];
 
 export interface Progress { v: 1; offered: boolean; lessonsDone: string[]; lesson: number; tour: number; tourDone: boolean }

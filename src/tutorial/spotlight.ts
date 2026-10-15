@@ -76,6 +76,13 @@ export function activeSteps(steps: TourStep[], visible: (s: TourStep) => boolean
 export const counterText = (i: number, total: number) => `${i + 1} of ${total}`;
 export const stepBody = (s: TourStep, touch: boolean) => (touch && s.touchBody) || s.body;
 
+/** The smallest rectangle around all of `rs`. */
+export function unionRect(rs: Rect[]): Rect {
+  const left = Math.min(...rs.map((r) => r.left)), top = Math.min(...rs.map((r) => r.top));
+  const right = Math.max(...rs.map((r) => r.left + r.width)), bottom = Math.max(...rs.map((r) => r.top + r.height));
+  return { left, top, width: right - left, height: bottom - top };
+}
+
 export interface TourHooks {
   /** Called with the absolute step id whenever a step shows. */
   onStep(id: string): void;
@@ -127,8 +134,7 @@ export class SpotlightTour {
     this.returnFocus = document.activeElement as HTMLElement | null;
     // Work out which steps can show here (some controls are hidden on phones or in the web build).
     this.steps = activeSteps(this.all, (s) => {
-      const t = document.querySelector<HTMLElement>(s.target);
-      return !!t && t.offsetParent !== null && t.getClientRects().length > 0;
+      return Array.from(document.querySelectorAll<HTMLElement>(s.target)).some((t) => t.offsetParent !== null && t.getClientRects().length > 0);
     });
     if (!this.steps.length) return this.close(false);
     const want = this.all[from]?.id;
@@ -181,10 +187,11 @@ export class SpotlightTour {
   /** Size the hole, the click blockers and the card to the current target. */
   place() {
     if (!this.open) return;
-    const t = document.querySelector<HTMLElement>(this.steps[this.i].target);
-    if (!t) return;
+    // A step can light up more than one thing (say the board and a tool): the hole covers them all.
+    const ts = Array.from(document.querySelectorAll<HTMLElement>(this.steps[this.i].target)).filter((e) => e.getClientRects().length > 0);
+    if (!ts.length) return;
     const vw = document.documentElement.clientWidth, vh = window.innerHeight;
-    const r = t.getBoundingClientRect();
+    const r = unionRect(ts.map((e) => e.getBoundingClientRect()));
     const hole = holeRect({ left: r.left, top: r.top, width: r.width, height: r.height }, vw, vh);
     const px = (x: Rect) => ({ left: `${x.left}px`, top: `${x.top}px`, width: `${x.width}px`, height: `${x.height}px` });
     Object.assign(this.spot.style, px(hole));

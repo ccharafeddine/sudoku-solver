@@ -7,7 +7,7 @@ import { UNITS } from '../sudoku/board';
 import { BoardView, type Marks } from '../ui/board';
 import { SpotlightTour } from './spotlight';
 import {
-  LESSONS, TOUR, WELCOME, lessonGeo, checkCell, checkDigit, elimAnswer, exampleStep, loadProgress, progressSummary, saveProgress, techniqueChoices, type Lesson, type Progress,
+  LESSONS, TOUR, WELCOME, lessonGeo, checkCell, checkDigit, elimAnswer, exampleStep, loadProgress, progressSummary, saveProgress, techniqueChoices, type Lesson, type Progress, type TourDemo,
 } from './lessons';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...kids: (Node | string)[]) => {
@@ -16,7 +16,11 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLEl
   return e;
 };
 
-export interface TutorialHooks { onFinish(): void }
+export interface TutorialHooks {
+  onFinish(): void;
+  /** Play a tour step's live example on the board (null: put the player's board back). */
+  demo?(id: TourDemo | null): void;
+}
 
 export class Tutorial {
   progress: Progress;
@@ -32,8 +36,9 @@ export class Tutorial {
     this.coach.setAttribute('aria-labelledby', 'coach-title');
     document.body.append(this.coach);
     this.tour = new SpotlightTour(TOUR, {
-      onStep: (id) => { this.progress.tour = Math.max(0, TOUR.findIndex((t) => t.id === id)); this.save(); },
+      onStep: (id) => { this.progress.tour = Math.max(0, TOUR.findIndex((t) => t.id === id)); this.save(); this.hooks.demo?.(TOUR[this.progress.tour].demo ?? null); },
       onClose: (finished) => {
+        this.hooks.demo?.(null);
         if (finished) { this.progress.tourDone = true; this.progress.tour = 0; }
         this.save();
         this.mode = 'off';

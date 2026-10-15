@@ -2,7 +2,7 @@ import './style.css';
 import { keepInView } from './ui/scroll';
 import { BoardView, type Marks } from './ui/board';
 import { CLASSIC, VARIANTS, VARIANT_LABELS, allowed, bit, candidates, cellName, conflicts, filledCount, gridString, groupWords, isComplete, makeGeo, prettyGrid, type Cage, type Geo, type Grid, type Variant } from './sudoku/board';
-import { LEVEL_LABELS, LEVELS, nextStep, TECH, type Level, type Rating, type Step } from './sudoku/logic';
+import { LEVEL_LABELS, LEVELS, applyStep, nextStep, TECH, type Level, type Rating, type Step } from './sudoku/logic';
 import type { Request, Response } from './sudoku/protocol';
 import type { SolveResult } from './sudoku/solver';
 import { History, blankSnap, cloneSnap, type Snapshot } from './app/history';
@@ -11,6 +11,7 @@ import { fromHash, importText, shareUrl } from './app/share';
 import { Timer, formatTime, stepDelay } from './app/timer';
 import { checkForUpdate, updatesEnabled } from './app/update';
 import { Tutorial } from './tutorial/tutorial';
+import type { TourDemo } from './tutorial/lessons';
 import { pickSkin, resolveTheme, modeFor, SKINS, SKIN_LABELS, SKIN_MODES, type SkinId } from './theme/skins';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -81,6 +82,8 @@ let editing = false;
 let entryNote = '';
 /** Shown once the worker confirms a typed-in puzzle has one answer. */
 let readyNote = '';
+/** True while the tour shows the Enter my own bar as an example. */
+let demoOwn = false;
 /** The puzzle to go back to if the player cancels typing one in. */
 let beforeEntry: { snap: Snapshot; variant: Variant; cages: Cage[]; ms: number } | null = null;
 /** The answer for the current givens, once the worker has found it (null while unknown or if there is none or many). */
@@ -163,7 +166,7 @@ function render() {
   $<HTMLButtonElement>('new').disabled = editing;
   $('rating').textContent = editing ? 'Entering your puzzle' : rating ? ratingText(rating) : '';
   const bar = $('entry-bar');
-  bar.classList.toggle('hidden', !editing);
+  bar.classList.toggle('hidden', !editing && !demoOwn);
   if (editing && !entryNote) { $('entry-text').textContent = entryState(snap.values, geo).text; bar.classList.remove('bad'); }
   renderHistory();
   renderSteps();
@@ -703,7 +706,8 @@ window.addEventListener('keydown', (e) => {
 // ---------- saving and resuming ----------
 function save() {
   try {
-    localStorage.setItem(GAME_KEY, JSON.stringify({ snap, variant: geo.variant, cages, ms: timer.ms, solvedAt, editing }));
+    // During a tour example, the player's real board is the one saved.
+    localStorage.setItem(GAME_KEY, JSON.stringify({ snap: demoSaved?.snap ?? snap, variant: geo.variant, cages, ms: timer.ms, solvedAt, editing }));
   } catch { /* storage full or blocked: the game just won't resume */ }
 }
 function resume(): boolean {
@@ -735,8 +739,113 @@ const helpDialog = $<HTMLDialogElement>('help-dialog');
 $('help').onclick = () => helpDialog.showModal();
 $('help-close').onclick = () => helpDialog.close();
 
+// ---------- tour examples ----------
+// Each one changes the board only in memory (nothing goes into History or the save),
+// and everything is put back exactly when the step changes or the tour ends.
+interface DemoSaved { snap: Snapshot; pencil: boolean; paint: boolean; brush: number; auto: boolean; mistakes: boolean; selected: number; hint: Step | null; marks: Marks | undefined; wrong: Set<number>; stepText: string; status: [string, string]; timing: boolean }
+let demoSaved: DemoSaved | null = null;
+let demoTimer = 0;
+function restoreDemo() {
+  clearTimeout(demoTimer);
+  const d = demoSaved;
+  if (!d) return;
+  demoSaved = null; demoOwn = false;
+  snap = d.snap; pencil = d.pencil; paint = d.paint; brush = d.brush; settings.autoNotes = d.auto; settings.mistakes = d.mistakes;
+  selected = d.selected; hint = d.hint; marks = d.marks; wrongCells = d.wrong;
+  $('step-text').innerHTML = d.stepText;
+  $('status').textContent = d.status[0]; $('status').className = d.status[1];
+  if (d.timing) timer.start();
+  render();
+}
+function tourDemo(id: TourDemo | null) {
+  restoreDemo();
+  if (!id || editing) return;
+  demoSaved = { snap: cloneSnap(snap), pencil, paint, brush, auto: settings.autoNotes, mistakes: settings.mistakes, selected, hint, marks, wrong: new Set(wrongCells), stepText: $('step-text').innerHTML, status: [$('status').textContent ?? '', $('status').className], timing: timer.running };
+  timer.pause();
+  stopPlay();
+  hint = null; marks = undefined; wrongCells = new Set();
+  const empties = snap.values.map((v, i) => (v ? -1 : i)).filter((i) => i >= 0);
+  const fits = (i: number) => [...Array(geo.n)].map((_, k) => k + 1).filter((d) => allowed(snap.values, i, geo) & bit(d));
+  const say = (t: string) => status(`Example: ${t}`, 'thinking');
+  const first = empties[0] ?? -1;
+  switch (id) {
+    case 'notes':
+      if (first < 0) break;
+      settings.autoNotes = false; pencil = true; selected = first;
+      snap.notes[first] = fits(first).slice(0, 3).reduce((m, d) => m | bit(d), 0);
+      say(`Notes is on, so the numbers in ${cn(first)} are small reminders, not answers.`);
+      break;
+    case 'auto':
+      settings.autoNotes = true; selected = -1;
+      say('Auto notes is on. Every empty square shows the numbers that could still go there.');
+      break;
+    case 'paint': {
+      paint = true; pencil = false; settings.autoNotes = false;
+      // Fill a few squares with one number: the right ones when the answer is known.
+      const counts = [...Array(geo.n + 1)].map((_, d) => (solution ? empties.filter((i) => solution![i] === d).length : 0));
+      const d = solution ? counts.indexOf(Math.max(...counts.slice(1))) : 1;
+      brush = d;
+      const cells = (solution ? empties.filter((i) => solution![i] === d) : empties.filter((i) => fits(i).includes(d))).slice(0, 3);
+      for (const i of cells) snap.values[i] = d;
+      selected = -1;
+      say(`Fill many is on with ${d} picked. One click on each square filled in ${cells.map(cn).join(', ')}.`);
+      break;
+    }
+    case 'mistakes': {
+      if (first < 0) break;
+      settings.mistakes = true;
+      const cell = empties.find((i) => solution && fits(i).some((d) => d !== solution![i])) ?? first;
+      const wrongDigit = fits(cell).find((d) => !solution || d !== solution[cell]) ?? 1;
+      snap.values[cell] = wrongDigit; selected = cell;
+      if (!solution) wrongCells = new Set([cell]);
+      say(`${wrongDigit} in ${cn(cell)} isn't the right answer, so it's red.`);
+      break;
+    }
+    case 'own':
+      demoOwn = true; settings.mistakes = false;
+      snap = blankSnap(geo.size);
+      [[0, 5], [geo.n + 2, 3], [2 * geo.n + 1, 1]].forEach(([i, d]) => { if (d <= geo.n) snap.values[i] = d; });
+      selected = 2 * geo.n + 1;
+      $('entry-text').textContent = 'Type the numbers from your puzzle, then press Done. 3 numbers so far.';
+      say('the board is blank and you type in your puzzle\'s numbers.');
+      break;
+    case 'hint': {
+      const s = nextStep(snap.values.slice(), hintCands(), geo);
+      if (!s) break;
+      hint = s; marks = marksFor(s);
+      if (s.place) selected = s.place.cell;
+      showStepText(s, 'Press Hint again (or H) and the app makes this step for you.');
+      say(`a Hint found a ${TECH[s.technique].name}. The squares that matter are outlined.`);
+      break;
+    }
+    case 'steps': {
+      // Play the first few steps on the board, one every second.
+      const vals = snap.values.slice(), cands = hintCands();
+      let k = 0;
+      const tick = () => {
+        const s = nextStep(vals, cands, geo);
+        if (!s || k >= 4) return;
+        k++;
+        applyStep(vals, cands, s, geo);
+        snap.values = vals.slice();
+        for (const e of s.eliminate) snap.elims[e.cell] |= bit(e.digit);
+        marks = marksFor(s); selected = s.place?.cell ?? -1;
+        showStepText(s);
+        say(`step ${k}: ${stepLabel(s)}.`);
+        render();
+        demoTimer = window.setTimeout(tick, 1100);
+      };
+      demoTimer = window.setTimeout(tick, 300);
+      say('watch the first steps play out.');
+      break;
+    }
+  }
+  render();
+}
+
 // ---------- tutorial ----------
 const tutorial = new Tutorial({
+  demo: tourDemo,
   onFinish: () => { if (filledCount(snap.values) === 0) void newPuzzle(); },
 });
 const tutDialog = $<HTMLDialogElement>('tutorial-dialog');

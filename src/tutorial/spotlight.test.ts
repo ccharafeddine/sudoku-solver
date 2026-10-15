@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { holeRect, dimRects, placeCard, isLarge, activeSteps, counterText, stepBody, SPOT_PAD } from './spotlight';
+import { unionRect, holeRect, dimRects, placeCard, isLarge, activeSteps, counterText, stepBody, SPOT_PAD } from './spotlight';
 import { TOUR } from './lessons';
 
 const VW = 1360, VH = 860;
@@ -52,6 +52,14 @@ describe('spotlight geometry', () => {
 });
 
 describe('tour helpers', () => {
+  it('lights up several targets with one hole around them all', () => {
+    expect(unionRect([{ left: 10, top: 20, width: 100, height: 100 }, { left: 300, top: 50, width: 40, height: 200 }])).toEqual({ left: 10, top: 20, width: 330, height: 230 });
+  });
+  it('gives every tool and helper a live example on the board', () => {
+    const want = { notes: 'notes', auto: 'auto', paint: 'paint', mistakes: 'mistakes', hint: 'hint', steps: 'steps', own: 'own' };
+    for (const [id, demo] of Object.entries(want)) expect(TOUR.find((t) => t.id === id)?.demo).toBe(demo);
+    for (const t of TOUR.filter((x) => x.demo)) expect(t.target).toMatch(/#board|#own/);
+  });
   it('drops steps whose target is not visible', () => {
     const s = activeSteps(TOUR, (t) => t.id !== 'history');
     expect(s).toHaveLength(TOUR.length - 1);
