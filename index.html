@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#ece7dd" />
+    <meta name="description" content="Play, generate or type in any Sudoku. Solve it instantly, or get step-by-step hints that name each technique and explain it in plain words." />
+    <meta property="og:title" content="Sudoku Solver" />
+    <meta property="og:description" content="Play, solve and learn Sudoku: instant solutions, hints that explain each technique, and puzzles from Easy to Expert." />
+    <meta property="og:image" content="./og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="./og-image.png" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <title>Sudoku Solver</title>
+  </head>
+  <body>
+    <a class="skip" href="#board">Skip to the puzzle</a>
+    <div id="error-banner" class="banner bad hidden" role="alert"></div>
+    <div id="update-banner" class="banner hidden" role="status"></div>
+    <header>
+      <h1><img src="./icon.svg" alt="" width="28" height="28" /> Sudoku Solver</h1>
+      <div class="hdr-icons">
+        <button id="tutorial" class="icon" aria-label="Tutorial: Sudoku lessons and app tour" title="Tutorial"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v6"/></svg></button>
+        <button id="help" class="icon" aria-label="Keyboard shortcuts and help" title="Shortcuts and help (?)"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.3 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.7 2.3-2.7 4"/><circle cx="12" cy="17.3" r=".6" fill="currentColor"/></svg></button>
+        <button id="settings" class="icon" aria-label="Settings: theme, updates and about" title="Settings" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      </div>
+    </header>
+    <main>
+      <section class="left" aria-label="Puzzle">
+        <div class="play">
+          <div class="board-wrap">
+            <div id="board"></div>
+            <div id="paused" class="paused hidden"><p>Paused</p><button id="resume" class="primary">Resume</button></div>
+            <div id="onboarding" class="tip hidden" role="dialog" aria-live="polite"></div>
+          </div>
+          <div class="side">
+            <div class="card" id="pad-card">
+              <div id="pad" role="group" aria-label="Digits"></div>
+              <div class="row pad-erase"><button id="erase" title="Erase the square (Delete)">Erase</button></div>
+            </div>
+            <div class="card tools" id="note-tools" role="group" aria-label="Note tools">
+              <label class="check"><input type="checkbox" id="pencil" /> Pencil <kbd>N</kbd></label>
+              <label class="check"><input type="checkbox" id="auto-notes" /> Auto notes</label>
+              <label class="check"><input type="checkbox" id="paint" /> Paint <kbd>P</kbd></label>
+            </div>
+            <div class="card" id="undo-row">
+              <div class="row">
+                <button id="undo" title="Undo (Ctrl+Z)" aria-label="Undo">↶ Undo</button>
+                <button id="redo" title="Redo (Ctrl+Y)" aria-label="Redo">↷ Redo</button>
+              </div>
+              <div class="row timer-row"><span id="timer" class="timer mono" aria-label="Time">0:00</span><button id="pause" title="Pause and hide the puzzle">Pause</button></div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="right">
+        <div id="status" class="status" role="status" aria-live="polite">Loading…</div>
+        <div class="card" id="puzzle-card">
+          <div class="row spread"><h2>Puzzle</h2><span id="rating" class="muted"></span></div>
+          <div class="row">
+            <select id="level" aria-label="Difficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select>
+            <button id="new" class="go" title="Make a new puzzle (Alt+N)">New puzzle</button>
+            <button id="restart" title="Clear your digits and start this puzzle again">Restart</button>
+            <button id="edit" aria-pressed="false" title="Type in your own puzzle (Alt+E)">Edit puzzle</button>
+          </div>
+        </div>
+        <div class="card" id="solve-card">
+          <div class="row spread"><h2>Help me</h2><span id="solve-note" class="muted"></span></div>
+          <div class="row">
+            <button id="hint" class="primary" title="Show the next step (H). Press again to do it">Hint</button>
+            <button id="check" title="Check your digits against the answer (C)">Check</button>
+            <button id="solve" title="Fill in the whole answer">Solve</button>
+          </div>
+        </div>
+        <div class="card" id="steps-card">
+          <div class="row spread"><h2>Steps</h2><span id="steps-count" class="muted"></span></div>
+          <div class="row sol-controls">
+            <button id="steps-start" aria-label="Back to the first step" title="Back to the first step">⏮</button>
+            <button id="steps-back" aria-label="Step back" title="Step back ([)">‹</button>
+            <button id="play" class="primary" title="Play or pause the steps (Space)">▶ Play</button>
+            <button id="steps-fwd" aria-label="Step forward" title="Step forward (])">›</button>
+            <label class="speed">Speed <input type="range" id="speed" min="0" max="100" value="45" aria-label="Playback speed" /></label>
+          </div>
+          <div id="step-text" class="step-text" aria-live="polite"></div>
+          <ol id="steps" aria-label="Steps to finish the puzzle; click one to jump there"></ol>
+        </div>
+        <div class="card" id="history-card">
+          <div class="row spread"><h2>History</h2><span id="hist-count" class="muted"></span></div>
+          <div id="history" aria-label="Your moves; click one to jump there"></div>
+        </div>
+        <div class="card" id="io-card">
+          <div class="row spread"><h2>Load and share</h2></div>
+          <textarea id="io-text" class="mono" rows="3" aria-label="Puzzle text or link" placeholder="81 digits, 0 or . for empty squares, or a share link"></textarea>
+          <div class="row">
+            <button id="import">Load</button>
+            <button id="export">Copy puzzle</button>
+            <button id="share">Copy share link</button>
+            <button id="export-grid">Copy as grid</button>
+          </div>
+          <p id="io-msg" class="muted" aria-live="polite"></p>
+        </div>
+      </section>
+    </main>
+    <dialog id="settings-dialog" aria-labelledby="settings-title">
+      <h2 id="settings-title">Settings</h2>
+      <h3>Appearance</h3>
+      <div id="theme-skins" class="skin-grid" role="radiogroup" aria-label="Theme"></div>
+      <div class="row mode-row"><span id="mode-label">Mode</span>
+        <div class="group" id="theme-modes" role="radiogroup" aria-labelledby="mode-label">
+          <button data-mode="light" role="radio">Light</button><button data-mode="dark" role="radio">Dark</button><button data-mode="system" role="radio">System</button>
+        </div>
+      </div>
+      <p id="theme-mode-note" class="muted"></p>
+      <h3>Play</h3>
+      <label class="check"><input type="checkbox" id="opt-guides" checked /> Light up the picked square's row, column, box and matching digits</label>
+      <label class="check"><input type="checkbox" id="opt-clean" checked /> Remove notes a new digit rules out</label>
+      <div id="updates-section">
+      <h3>Updates</h3>
+      <div class="row"><button id="check-update">Check for updates</button><span id="update-msg" class="muted" aria-live="polite"></span></div>
+      </div>
+      <h3>About</h3>
+      <p class="about">Sudoku Solver <span id="version" class="mono"></span>. Play, solve and learn 9x9 Sudoku, with hints that explain every step. Works offline.</p>
+      <div class="row"><button id="settings-close" class="primary">Done</button></div>
+    </dialog>
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <h2 id="help-title">Controls and shortcuts</h2>
+      <table class="keys">
+        <tr><td>Click a square</td><td>Pick it; then type or click a digit</td></tr>
+        <tr><td><kbd>1</kbd>–<kbd>9</kbd> (or the number pad)</td><td>Write a digit; with Pencil on, write a note</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>9</kbd></td><td>Write a note, even with Pencil off</td></tr>
+        <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd> / <kbd>0</kbd></td><td>Erase the square</td></tr>
+        <tr><td><kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd></td><td>Move around the grid</td></tr>
+        <tr><td><kbd>N</kbd> / <kbd>P</kbd></td><td>Pencil on or off / Paint on or off</td></tr>
+        <tr><td><kbd>H</kbd></td><td>Hint; press again to do the step</td></tr>
+        <tr><td><kbd>C</kbd></td><td>Check your digits</td></tr>
+        <tr><td><kbd>Space</kbd>, <kbd>[</kbd> / <kbd>]</kbd></td><td>Play or pause the steps / step back or forward</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>N</kbd> / <kbd>Alt</kbd>+<kbd>E</kbd></td><td>New puzzle / edit puzzle</td></tr>
+        <tr><td><kbd>Esc</kbd></td><td>Close a hint, stop painting, or unpick the square</td></tr>
+        <tr><td><kbd>?</kbd></td><td>This help</td></tr>
+      </table>
+      <div class="row"><button id="tour">Tutorial…</button><button id="help-appearance">Settings…</button><button id="help-close" class="primary">Close</button></div>
+    </dialog>
+    <dialog id="tutorial-dialog" aria-labelledby="tut-title">
+      <h2 id="tut-title">Tutorial</h2>
+      <p id="tut-summary" class="muted"></p>
+      <h3>Learn Sudoku</h3>
+      <p class="muted">Eight short lessons: the rules, then the tricks people use, from singles to the X-Wing. Each one asks you a quick question.</p>
+      <div class="row"><button id="tut-lessons" class="primary">Start the lessons</button><button id="tut-restart">Start over</button></div>
+      <h3>App tour</h3>
+      <p class="muted">A short tour that points at each part of the app and says what it does.</p>
+      <div class="row"><button id="tut-tour" class="primary">Take the app tour</button><button id="tut-tour-restart">From the start</button></div>
+      <div class="row spread"><button id="tut-reset" class="link">Reset tutorial progress</button><button id="tut-close">Close</button></div>
+    </dialog>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
