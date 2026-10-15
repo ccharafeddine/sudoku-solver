@@ -14,7 +14,7 @@ export interface Snapshot {
 export interface Entry { label: string; snap: Snapshot }
 
 export const cloneSnap = (s: Snapshot): Snapshot => ({ values: s.values.slice(), givens: s.givens.slice(), notes: s.notes.slice(), elims: s.elims.slice() });
-export const blankSnap = (): Snapshot => ({ values: new Array(81).fill(0), givens: new Array(81).fill(false), notes: new Array(81).fill(0), elims: new Array(81).fill(0) });
+export const blankSnap = (size = 81): Snapshot => ({ values: new Array(size).fill(0), givens: new Array(size).fill(false), notes: new Array(size).fill(0), elims: new Array(size).fill(0) });
 export const sameSnap = (a: Snapshot, b: Snapshot) =>
   a.values.every((v, i) => v === b.values[i] && a.givens[i] === b.givens[i] && a.notes[i] === b.notes[i] && a.elims[i] === b.elims[i]);
 

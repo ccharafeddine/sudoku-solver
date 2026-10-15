@@ -1,7 +1,7 @@
 import './style.css';
 import { keepInView } from './ui/scroll';
 import { BoardView, type Marks } from './ui/board';
-import { allowed, bit, candidates, cellName, conflicts, filledCount, gridString, isComplete, prettyGrid, UNITS, type Grid } from './sudoku/board';
+import { CLASSIC, VARIANTS, VARIANT_LABELS, allowed, bit, candidates, cellName, conflicts, filledCount, gridString, groupWords, isComplete, makeGeo, prettyGrid, type Cage, type Geo, type Grid, type Variant } from './sudoku/board';
 import { LEVEL_LABELS, LEVELS, nextStep, TECH, type Level, type Rating, type Step } from './sudoku/logic';
 import type { Request, Response } from './sudoku/protocol';
 import type { SolveResult } from './sudoku/solver';
@@ -33,11 +33,12 @@ window.addEventListener('error', (e) => showError(e.message || 'unknown error'))
 window.addEventListener('unhandledrejection', (e) => showError(String((e.reason as Error)?.message ?? e.reason)));
 
 // ---------- settings ----------
-interface Settings { level: Level; speed: number; autoNotes: boolean; guides: boolean; clean: boolean; mistakes: boolean }
+interface Settings { level: Level; variant: Variant; speed: number; autoNotes: boolean; guides: boolean; clean: boolean; mistakes: boolean }
 const SETTINGS_KEY = 'sudoku-solver-settings', GAME_KEY = 'sudoku-solver-game';
 const saved: Partial<Settings> = (() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}'); } catch { return {}; } })();
 const settings: Settings = {
   level: LEVELS.includes(saved.level as Level) ? saved.level! : 'easy',
+  variant: VARIANTS.includes(saved.variant as Variant) ? saved.variant! : 'classic',
   speed: typeof saved.speed === 'number' ? saved.speed : 45,
   autoNotes: saved.autoNotes === true,
   guides: saved.guides !== false,
@@ -65,6 +66,9 @@ function ask(body: Body): Promise<Response> {
 }
 
 // ---------- state ----------
+/** The puzzle's shape: size, groups and (for Killer) cages. */
+let geo: Geo = CLASSIC;
+let cages: Cage[] = [];
 let snap: Snapshot = blankSnap();
 const history = new History(snap, 'Start');
 let selected = 40;
@@ -94,9 +98,11 @@ let playTimer = 0;
 
 const board = new BoardView($('board'), 'Sudoku grid. Use the arrow keys to move and 1 to 9 to fill a square.');
 const givensGrid = () => snap.values.map((v, i) => (snap.givens[i] ? v : 0));
-const notesOf = (i: number) => (snap.values[i] ? 0 : settings.autoNotes ? allowed(snap.values, i) & ~snap.elims[i] : snap.notes[i]);
+const notesOf = (i: number) => (snap.values[i] ? 0 : settings.autoNotes ? allowed(snap.values, i, geo) & ~snap.elims[i] : snap.notes[i]);
 /** Pencil marks the hint engine works from: automatic marks minus anything ruled out so far. */
-const hintCands = () => candidates(snap.values).map((m, i) => m & ~snap.elims[i]);
+const hintCands = () => candidates(snap.values, geo).map((m, i) => m & ~snap.elims[i]);
+const cn = (i: number) => cellName(i, geo.n);
+const shape = () => ({ variant: geo.variant, cages });
 
 function status(text: string, kind: '' | 'ok' | 'bad' | 'thinking' = '') {
   const el = $('status');
@@ -108,6 +114,7 @@ function status(text: string, kind: '' | 'ok' | 'bad' | 'thinking' = '') {
 const padButtons: HTMLButtonElement[] = [];
 for (let d = 1; d <= 9; d++) {
   const b = document.createElement('button');
+  b.id = `pad-${d}`;
   b.dataset.d = String(d);
   b.innerHTML = `${d}<small></small>`;
   b.onclick = () => digitInput(d, false);
@@ -116,7 +123,7 @@ for (let d = 1; d <= 9; d++) {
 }
 
 function render() {
-  const bad = conflicts(snap.values);
+  const bad = conflicts(snap.values, geo);
   // Show mistakes: digits that differ from the one answer. With no single answer, only clashes (above) are marked.
   const wrong = new Set(wrongCells);
   if (settings.mistakes && !editing) for (const i of mistakes()) wrong.add(i);
@@ -125,7 +132,8 @@ function render() {
   const count = new Array(10).fill(0);
   for (const v of snap.values) count[v]++;
   padButtons.forEach((b, k) => {
-    const left = 9 - count[k + 1];
+    b.hidden = k >= geo.n;
+    const left = geo.n - count[k + 1];
     b.querySelector('small')!.textContent = left > 0 ? String(left) : '';
     b.classList.toggle('done', left <= 0);
     b.classList.toggle('brush', paint && brush === k + 1);
@@ -140,18 +148,20 @@ function render() {
   $('edit').setAttribute('aria-pressed', String(editing));
   $('edit').textContent = editing ? 'Done editing' : 'Edit puzzle';
   const ready = !editing && !!solution;
-  $<HTMLButtonElement>('hint').disabled = editing || isComplete(snap.values);
+  $<HTMLButtonElement>('hint').disabled = editing || isComplete(snap.values, geo);
   $<HTMLButtonElement>('hint').textContent = hint ? 'Do it' : 'Hint';
   $<HTMLButtonElement>('check').disabled = !ready;
-  $<HTMLButtonElement>('solve').disabled = !ready || isComplete(snap.values);
+  $<HTMLButtonElement>('solve').disabled = !ready || isComplete(snap.values, geo);
   $<HTMLButtonElement>('restart').disabled = editing;
+  $<HTMLButtonElement>('edit').disabled = geo.variant === 'killer';
+  $('edit').title = geo.variant === 'killer' ? 'Killer cages can\'t be typed in yet: load a Killer puzzle with a share link' : 'Type in your own puzzle (Alt+E)';
   $('rating').textContent = editing ? 'Editing' : rating ? ratingText(rating) : '';
   renderHistory();
   renderSteps();
 }
 
 function ratingText(r: Rating): string {
-  if (r.level === 'beyond') return 'Fiendish: needs guessing';
+  if (r.level === 'beyond') return 'Beyond Fiendish: needs guessing';
   return `${LEVEL_LABELS[r.level]}${r.hardest ? ` · up to ${TECH[r.hardest].name}` : ''}`;
 }
 
@@ -205,20 +215,20 @@ function renderSteps() {
   $<HTMLButtonElement>('steps-start').disabled = !live || pos === 0;
   $<HTMLButtonElement>('steps-back').disabled = !live || pos === 0;
   $<HTMLButtonElement>('steps-fwd').disabled = editing;
-  $<HTMLButtonElement>('play').disabled = editing || isComplete(snap.values);
+  $<HTMLButtonElement>('play').disabled = editing || isComplete(snap.values, geo);
   $('play').textContent = playing ? '❚❚ Pause' : '▶ Play';
 }
 
 function stepLabel(s: Step): string {
   const t = TECH[s.technique].name;
-  if (s.place) return `${t}: ${cellName(s.place.cell)} = ${s.place.digit}`;
+  if (s.place) return `${t}: ${cn(s.place.cell)} = ${s.place.digit}`;
   const ds = [...new Set(s.eliminate.map((e) => e.digit))].join(', ');
   return `${t}: rules out ${ds}`;
 }
 
 /** Outline a step's pattern, shade its groups and show what it changes. */
 function marksFor(s: Step): Marks {
-  const area = new Set<number>(s.units.flatMap((u) => UNITS[u]));
+  const area = new Set<number>(s.units.flatMap((u) => geo.units[u].cells));
   const strike = new Map<number, number>();
   for (const e of s.eliminate) strike.set(e.cell, (strike.get(e.cell) ?? 0) | bit(e.digit));
   return { pattern: new Set(s.cells), area, strike, place: s.place ? new Map([[s.place.cell, s.place.digit]]) : undefined, focus: s.digits.length === 1 ? s.digits[0] : undefined };
@@ -243,7 +253,7 @@ function commit(label: string, fromSteps = false) {
 
 function afterChange() {
   save();
-  if (!editing && filledCount(snap.values) === 81 && isComplete(snap.values)) {
+  if (!editing && filledCount(snap.values) === geo.size && isComplete(snap.values, geo)) {
     if (solvedAt === null) {
       timer.pause();
       solvedAt = timer.ms;
@@ -261,21 +271,22 @@ function setDigit(i: number, d: number) {
   if (editing) snap.givens[i] = d > 0;
   if (d) {
     snap.notes[i] = 0;
-    if (settings.clean) for (const u of [Math.floor(i / 9), 9 + (i % 9), 18 + Math.floor(i / 27) * 3 + Math.floor((i % 9) / 3)]) for (const j of UNITS[u]) snap.notes[j] &= ~bit(d);
+    if (settings.clean) for (const j of geo.peers[i]) snap.notes[j] &= ~bit(d);
   }
   if (!editing && d && solution && solution[i] !== d) { /* no instant spoiler: Check reveals mistakes */ }
-  commit(d ? `${cellName(i)} = ${d}` : `Erase ${cellName(i)}`);
-  if (!editing && conflicts(snap.values).has(i)) status(`${d} is already in that square's row, column or box. Clashing squares are red.`, 'bad');
+  commit(d ? `${cn(i)} = ${d}` : `Erase ${cn(i)}`);
+  if (!editing && conflicts(snap.values, geo).has(i)) status(geo.variant === 'killer' ? `${d} breaks a rule: it repeats in a ${groupWords(geo).replace(' or ', ', ')}, or its cage adds up wrong. Those squares are red.` : `${d} is already in that square's ${groupWords(geo)}. Clashing squares are red.`, 'bad');
   else if (solvedAt === null && !editing) status(statusLine());
 }
 
 function toggleNote(i: number, d: number) {
   if (snap.values[i]) { status('That square already has a digit. Erase it first to write notes.', ''); return; }
   if (settings.autoNotes) snap.elims[i] ^= bit(d); else snap.notes[i] ^= bit(d);
-  commit(`Note ${d} in ${cellName(i)}`);
+  commit(`Note ${d} in ${cn(i)}`);
 }
 
 function digitInput(d: number, asNote: boolean) {
+  if (d > geo.n) { status(`This puzzle only uses 1 to ${geo.n}.`); return; }
   if (paint) { brush = brush === d ? 0 : d; status(brush ? `Painting ${d}${pencil ? ' notes' : ''}: click squares to fill them. Press Esc to stop.` : 'Pick a digit to paint with.'); render(); return; }
   if (selected < 0) { status('Pick a square first.'); return; }
   if (asNote || (pencil && !editing)) toggleNote(selected, d); else setDigit(selected, snap.values[selected] === d && !editing ? 0 : d);
@@ -284,7 +295,7 @@ function digitInput(d: number, asNote: boolean) {
 function erase() {
   if (selected < 0) return;
   if (snap.values[selected]) setDigit(selected, 0);
-  else if (snap.notes[selected] || snap.elims[selected]) { snap.notes[selected] = 0; commit(`Clear notes in ${cellName(selected)}`); }
+  else if (snap.notes[selected] || snap.elims[selected]) { snap.notes[selected] = 0; commit(`Clear notes in ${cn(selected)}`); }
 }
 
 board.onCell = (i, e) => {
@@ -309,9 +320,18 @@ const undo = () => { if (history.canUndo) jumpHistory(history.index - 1); };
 const redo = () => { if (history.canRedo) jumpHistory(history.index + 1); };
 
 // ---------- loading puzzles ----------
-function loadPuzzle(givens: Grid, label: string, entered?: Grid | null, keepTime = 0) {
+/** Switch the board to a shape (and Killer cages), rebuilding the grid only when it changes. */
+function setShape(variant: Variant, newCages: Cage[]) {
+  const key = (v: Variant, c: Cage[]) => v + JSON.stringify(c);
+  if (key(variant, newCages) !== key(geo.variant, cages)) { geo = makeGeo(variant, newCages); cages = newCages; board.build(geo); }
+  variantSel.value = variant;
+  fillLevels();
+}
+
+function loadPuzzle(givens: Grid, label: string, entered?: Grid | null, keepTime = 0, variant: Variant = geo.variant, newCages: Cage[] = variant === geo.variant ? cages : []) {
   stopPlay();
-  snap = blankSnap();
+  setShape(variant, newCages);
+  snap = blankSnap(geo.size);
   snap.values = givens.map((v, i) => v || entered?.[i] || 0);
   snap.givens = givens.map((v) => v > 0);
   history.reset(snap, label);
@@ -321,7 +341,7 @@ function loadPuzzle(givens: Grid, label: string, entered?: Grid | null, keepTime
   showStepText(null, 'Press Play to watch the whole puzzle solved one trick at a time, or › to take one step. Each step says which trick it uses and why it works.');
   editing = false;
   selected = givens.findIndex((v) => !v);
-  if (filledCount(givens) === 0) { startEditing(); return; }
+  if (filledCount(givens) === 0 && variant !== 'killer') { startEditing(); return; }
   analyse();
   afterChange();
 }
@@ -330,7 +350,7 @@ function loadPuzzle(givens: Grid, label: string, entered?: Grid | null, keepTime
 function analyse() {
   const g = givensGrid();
   status('Checking the puzzle…', 'thinking');
-  void ask({ kind: 'solve', grid: g }).then((r) => {
+  void ask({ kind: 'solve', grid: g, ...shape() }).then((r) => {
     if (r.kind !== 'solve' || gridString(g) !== gridString(givensGrid())) return;
     solveInfo = r.result;
     solution = r.result.kind === 'unique' ? r.result.solution : null;
@@ -339,23 +359,27 @@ function analyse() {
     else if (solvedAt === null) status(statusLine());
     render();
   });
-  void ask({ kind: 'rate', grid: g }).then((r) => { if (r.kind === 'rate' && gridString(g) === gridString(givensGrid())) { rating = r.rating; render(); } });
+  void ask({ kind: 'rate', grid: g, ...shape() }).then((r) => { if (r.kind === 'rate' && gridString(g) === gridString(givensGrid())) { rating = r.rating; render(); } });
 }
 
 function statusLine(): string {
-  const left = 81 - filledCount(snap.values);
+  const left = geo.size - filledCount(snap.values);
   return `${left} square${left === 1 ? '' : 's'} to go. Pick a square and type a digit, or press Hint.`;
 }
 
 async function newPuzzle() {
   stopPlay();
-  const level = settings.level;
-  status(`Making a ${LEVEL_LABELS[level]} puzzle…`, 'thinking');
+  const level = levelSel.value as Level;
+  status(`Making a ${LEVEL_LABELS[level]} ${VARIANT_LABELS[settings.variant]} puzzle…`, 'thinking');
   $<HTMLButtonElement>('new').disabled = true;
-  const r = await ask({ kind: 'generate', level });
+  const variant = settings.variant;
+  const r = await ask({ kind: 'generate', level, variant });
   $<HTMLButtonElement>('new').disabled = false;
+  // A puzzle for a shape the player has since left is dropped.
+  if (r.kind === 'generate' && variant !== settings.variant) return;
   if (r.kind !== 'generate') { status(`Couldn't make a puzzle: ${r.kind === 'error' ? r.message : 'unknown error'}`, 'bad'); return; }
-  loadPuzzle(r.puzzle, `New ${LEVEL_LABELS[level]} puzzle`);
+  loadPuzzle(r.puzzle.givens, `New ${LEVEL_LABELS[r.level]} ${VARIANT_LABELS[variant]}`, null, 0, variant, r.puzzle.cages);
+  if (r.closest) showStepText(null, `No ${LEVEL_LABELS[level]} ${VARIANT_LABELS[variant]} puzzle turned up in time, so here is a ${LEVEL_LABELS[r.level]} one. Try again for another go.`);
 }
 
 function startEditing() {
@@ -373,7 +397,8 @@ function startEditing() {
 function finishEditing() {
   editing = false;
   const g = snap.values.slice();
-  if (filledCount(g) < 17) { editing = true; status('A Sudoku needs at least 17 digits to have just one answer. Add some more.', 'bad'); render(); return; }
+  const least = { classic: 17, diagonal: 12, killer: 0, mini6: 8, mini4: 4 }[geo.variant];
+  if (filledCount(g) < least) { editing = true; status(`A puzzle this shape needs at least ${least} digits to have just one answer. Add some more.`, 'bad'); render(); return; }
   loadPuzzle(g, 'Your puzzle');
 }
 
@@ -386,7 +411,7 @@ function mistakes(): number[] {
 function doHint() {
   if (editing) return;
   if (hint) { applyHint(hint, `Hint: ${stepLabel(hint)}`); return; }
-  if (conflicts(snap.values).size) { status('Fix the red squares first: a digit is in the same row, column or box twice.', 'bad'); return; }
+  if (conflicts(snap.values, geo).size) { status('Fix the red squares first: they break a rule.', 'bad'); return; }
   const wrong = mistakes();
   if (wrong.length) {
     wrongCells = new Set(wrong);
@@ -394,7 +419,7 @@ function doHint() {
     render();
     return;
   }
-  const s = nextStep(snap.values.slice(), hintCands());
+  const s = nextStep(snap.values.slice(), hintCands(), geo);
   if (!s) {
     status('No step a person would spot comes next. This puzzle needs guessing (trial and error) here. Press Solve to see the answer.', 'bad');
     return;
@@ -408,7 +433,7 @@ function doHint() {
 }
 
 function applyHint(s: Step, label: string, fromSteps = false) {
-  if (s.place) { snap.values[s.place.cell] = s.place.digit; snap.notes[s.place.cell] = 0; if (settings.clean) for (let j = 0; j < 81; j++) if (!snap.values[j] && !(allowed(snap.values, j) & bit(s.place.digit))) snap.notes[j] &= ~bit(s.place.digit); }
+  if (s.place) { snap.values[s.place.cell] = s.place.digit; snap.notes[s.place.cell] = 0; if (settings.clean) for (const j of geo.peers[s.place.cell]) snap.notes[j] &= ~bit(s.place.digit); }
   for (const e of s.eliminate) { snap.elims[e.cell] |= bit(e.digit); snap.notes[e.cell] &= ~bit(e.digit); }
   commit(label, fromSteps);
   if (solvedAt === null) status(fromSteps ? `Step: ${stepLabel(s)}` : `Done: ${stepLabel(s)}. ${statusLine()}`);
@@ -418,7 +443,7 @@ function doCheck() {
   if (!solution) return;
   const wrong = mistakes();
   wrongCells = new Set(wrong);
-  const left = 81 - filledCount(snap.values);
+  const left = geo.size - filledCount(snap.values);
   status(wrong.length ? `${wrong.length} digit${wrong.length === 1 ? ' is' : 's are'} wrong (marked red).` : `Everything so far is right! ${left ? `${left} to go.` : ''}`, wrong.length ? 'bad' : 'ok');
   render();
   setTimeout(() => { wrongCells.clear(); render(); }, 4000);
@@ -437,9 +462,9 @@ function doSolve() {
 /** Work out every step from here (in the worker) and get ready to play them. */
 async function computeSteps(): Promise<boolean> {
   if (editing) return false;
-  if (conflicts(snap.values).size || mistakes().length) { doHint(); return false; }
+  if (conflicts(snap.values, geo).size || mistakes().length) { doHint(); return false; }
   status('Working out the steps…', 'thinking');
-  const r = await ask({ kind: 'steps', grid: snap.values.slice(), cands: hintCands() });
+  const r = await ask({ kind: 'steps', grid: snap.values.slice(), cands: hintCands(), ...shape() });
   if (r.kind !== 'steps') return false;
   steps = r.steps; stepsBase = history.index; stepsApplied = 0; stepsShown = null;
   hint = null;
@@ -506,8 +531,24 @@ function setPaused(p: boolean) {
   if (p) { timer.pause(); stopPlay(); } else if (solvedAt === null && !editing && filledCount(snap.values) > 0) timer.start();
 }
 const levelSel = $<HTMLSelectElement>('level');
-levelSel.value = settings.level;
+const variantSel = $<HTMLSelectElement>('variant');
+/** The levels each shape can make: small grids rarely need more than the basics, and Killer always needs cage sums. */
+const LEVELS_FOR: Record<Variant, Level[]> = { classic: LEVELS, diagonal: LEVELS, killer: ['medium', 'hard'], mini6: ['easy', 'medium'], mini4: ['easy'] };
+function fillLevels() {
+  const v = variantSel.value as Variant;
+  const list = LEVELS_FOR[v];
+  if (levelSel.dataset.for !== v) {
+    levelSel.dataset.for = v;
+    levelSel.replaceChildren(...list.map((l) => new Option(LEVEL_LABELS[l], l)));
+  }
+  levelSel.value = list.includes(settings.level) ? settings.level : list[0];
+  levelSel.disabled = list.length === 1;
+}
+for (const v of VARIANTS) variantSel.append(new Option(VARIANT_LABELS[v], v));
+variantSel.value = settings.variant;
+fillLevels();
 levelSel.onchange = () => { settings.level = levelSel.value as Level; persist(); };
+variantSel.onchange = () => { settings.variant = variantSel.value as Variant; persist(); fillLevels(); void newPuzzle(); };
 $('new').onclick = () => void newPuzzle();
 $('restart').onclick = () => {
   stopPlay();
@@ -534,14 +575,14 @@ async function copy(text: string, what: string) {
   try { await navigator.clipboard.writeText(text); ioMsg(`Copied ${what}.`); } catch { $<HTMLTextAreaElement>('io-text').value = text; ioMsg(`Couldn't reach the clipboard, so the ${what} is in the box above.`); }
 }
 $('import').onclick = () => {
-  const r = importText($<HTMLTextAreaElement>('io-text').value);
-  if (!r) { ioMsg('That isn\'t a puzzle: it needs 81 squares (digits, with 0 or . for empty ones).'); return; }
-  loadPuzzle(r.givens, 'Loaded puzzle', r.entered);
+  const r = importText($<HTMLTextAreaElement>('io-text').value, geo.variant);
+  if (!r) { ioMsg('That isn\'t a puzzle: it needs 81 squares (36 for 6x6, 16 for 4x4), with 0 or . for empty ones.'); return; }
+  loadPuzzle(r.givens, 'Loaded puzzle', r.entered, 0, r.variant, r.cages);
   ioMsg('Loaded.');
 };
-$('export').onclick = () => void copy(gridString(givensGrid()), 'puzzle');
-$('export-grid').onclick = () => void copy(prettyGrid(snap.values), 'grid');
-$('share').onclick = () => void copy(shareUrl(location.href, givensGrid(), snap.values.map((v, i) => (snap.givens[i] ? 0 : v))), 'share link');
+$('export').onclick = () => void (geo.variant === 'killer' ? copy(shareUrl(location.href, givensGrid(), undefined, 'killer', cages), 'puzzle link (Killer cages need a link)') : copy(gridString(givensGrid()), 'puzzle'));
+$('export-grid').onclick = () => void copy(prettyGrid(snap.values, geo), 'grid');
+$('share').onclick = () => void copy(shareUrl(location.href, givensGrid(), snap.values.map((v, i) => (snap.givens[i] ? 0 : v)), geo.variant, cages), 'share link');
 
 // ---------- keyboard ----------
 const anyDialogOpen = () => !!document.querySelector('dialog[open]') || tutorial.busy;
@@ -565,6 +606,7 @@ window.addEventListener('keydown', (e) => {
   if (m) {
     e.preventDefault();
     const d = +m[1];
+    if (d > geo.n) return;
     if (d === 0) erase(); else digitInput(d, e.shiftKey);
     return;
   }
@@ -573,8 +615,8 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     if (selected < 0) selected = 0;
     else {
-      const r = Math.floor(selected / 9), c = selected % 9;
-      selected = move === -9 ? ((r + 8) % 9) * 9 + c : move === 9 ? ((r + 1) % 9) * 9 + c : move === -1 ? r * 9 + ((c + 8) % 9) : r * 9 + ((c + 1) % 9);
+      const n = geo.n, r = Math.floor(selected / n), c = selected % n;
+      selected = move === -9 ? ((r + n - 1) % n) * n + c : move === 9 ? ((r + 1) % n) * n + c : move === -1 ? r * n + ((c + n - 1) % n) : r * n + ((c + 1) % n);
     }
     board.cells[selected].focus({ preventScroll: true });
     render();
@@ -602,16 +644,18 @@ window.addEventListener('keydown', (e) => {
 // ---------- saving and resuming ----------
 function save() {
   try {
-    localStorage.setItem(GAME_KEY, JSON.stringify({ snap, givensOnly: gridString(givensGrid()), ms: timer.ms, solvedAt, editing }));
+    localStorage.setItem(GAME_KEY, JSON.stringify({ snap, variant: geo.variant, cages, ms: timer.ms, solvedAt, editing }));
   } catch { /* storage full or blocked: the game just won't resume */ }
 }
 function resume(): boolean {
   try {
-    const raw = JSON.parse(localStorage.getItem(GAME_KEY) ?? 'null') as { snap: Snapshot; ms: number; solvedAt: number | null; editing: boolean } | null;
-    if (!raw?.snap?.values || raw.snap.values.length !== 81) return false;
-    const s = cloneSnap({ ...blankSnap(), ...raw.snap });
+    const raw = JSON.parse(localStorage.getItem(GAME_KEY) ?? 'null') as { snap: Snapshot; variant?: Variant; cages?: Cage[]; ms: number; solvedAt: number | null; editing: boolean } | null;
+    const variant = VARIANTS.includes(raw?.variant as Variant) ? raw!.variant! : 'classic';
+    const size = makeGeo(variant).size;
+    if (!raw?.snap?.values || raw.snap.values.length !== size) return false;
+    const s = cloneSnap({ ...blankSnap(size), ...raw.snap });
     const givens = s.values.map((v, i) => (s.givens[i] ? v : 0));
-    loadPuzzle(givens, 'Resumed', s.values.map((v, i) => (s.givens[i] ? 0 : v)), raw.ms || 0);
+    loadPuzzle(givens, 'Resumed', s.values.map((v, i) => (s.givens[i] ? 0 : v)), raw.ms || 0, variant, raw.cages ?? []);
     snap.notes = s.notes; snap.elims = s.elims;
     history.reset(snap, 'Resumed');
     if (raw.editing) startEditing();
@@ -741,7 +785,7 @@ $('version').textContent = `v${__APP_VERSION__}`;
 function openShared(): boolean {
   const shared = fromHash(location.hash);
   if (!shared) return false;
-  loadPuzzle(shared.givens, 'Shared puzzle', shared.entered);
+  loadPuzzle(shared.givens, 'Shared puzzle', shared.entered, 0, shared.variant, shared.cages);
   // Drop the hash so a reload resumes the game instead of starting the link over.
   window.history.replaceState(null, '', location.pathname + location.search);
   return true;

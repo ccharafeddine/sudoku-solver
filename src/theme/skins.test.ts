@@ -36,7 +36,8 @@ describe('design tokens', () => {
   });
   it('components use only declared tokens', () => {
     const used = new Set([...style.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]));
-    const declared = new Set([...aero, '--n', '--s', '--chev']);
+    // Layout inputs set inline by the board view: grid size and the notes' rows and columns.
+    const declared = new Set([...aero, '--n', '--nc', '--nr', '--s', '--chev']);
     expect([...used].filter((v) => !declared.has(v))).toEqual([]);
   });
   it('panels, cards, controls and chips take their corners from the theme', () => {

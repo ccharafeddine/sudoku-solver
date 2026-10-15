@@ -7,7 +7,7 @@ import { UNITS } from '../sudoku/board';
 import { BoardView, type Marks } from '../ui/board';
 import { SpotlightTour } from './spotlight';
 import {
-  LESSONS, TOUR, WELCOME, checkCell, checkDigit, elimAnswer, exampleStep, loadProgress, progressSummary, saveProgress, techniqueChoices, type Lesson, type Progress,
+  LESSONS, TOUR, WELCOME, lessonGeo, checkCell, checkDigit, elimAnswer, exampleStep, loadProgress, progressSummary, saveProgress, techniqueChoices, type Lesson, type Progress,
 } from './lessons';
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, props: Partial<HTMLElementTagNameMap[K]> = {}, ...kids: (Node | string)[]) => {
@@ -80,7 +80,7 @@ export class Tutorial {
     const feedback = el('p', { className: 'feedback' });
     feedback.setAttribute('aria-live', 'polite');
     const boardEl = el('div');
-    const view = new BoardView(boardEl, `Lesson board: ${lesson.title}`);
+    const view = new BoardView(boardEl, `Lesson board: ${lesson.title}`, lessonGeo(lesson));
     const next = el('button', { className: 'primary', textContent: last ? 'Finish' : 'Next lesson', disabled: !this.progress.lessonsDone.includes(lesson.id) });
     next.onclick = () => (last ? this.finish() : this.showLesson(i + 1));
     const right = (msg: string) => { feedback.className = 'feedback good'; feedback.textContent = `✓ ${msg}`; this.markDone(lesson); next.disabled = false; next.focus(); refreshDots(); };

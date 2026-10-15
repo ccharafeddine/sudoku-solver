@@ -60,7 +60,8 @@
         <div class="card" id="puzzle-card">
           <div class="row spread"><h2>Puzzle</h2><span id="rating" class="muted"></span></div>
           <div class="row">
-            <select id="level" aria-label="Difficulty"><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option><option value="expert">Expert</option></select>
+            <select id="variant" aria-label="Puzzle type"></select>
+            <select id="level" aria-label="Difficulty"></select>
             <button id="new" class="go" title="Make a new puzzle (Alt+N)">New puzzle</button>
             <button id="restart" title="Clear your digits and start this puzzle again">Restart</button>
             <button id="edit" aria-pressed="false" title="Type in your own puzzle (Alt+E)">Edit puzzle</button>
@@ -92,7 +93,7 @@
         </div>
         <div class="card" id="io-card">
           <div class="row spread"><h2>Load and share</h2></div>
-          <textarea id="io-text" class="mono" rows="3" aria-label="Puzzle text or link" placeholder="81 digits, 0 or . for empty squares, or a share link"></textarea>
+          <textarea id="io-text" class="mono" rows="3" aria-label="Puzzle text or link" placeholder="81 digits (36 for 6x6, 16 for 4x4), 0 or . for empty squares, or a share link"></textarea>
           <div class="row">
             <button id="import">Load</button>
             <button id="export">Copy puzzle</button>
@@ -148,7 +149,7 @@
       <h2 id="tut-title">Tutorial</h2>
       <p id="tut-summary" class="muted"></p>
       <h3>Learn Sudoku</h3>
-      <p class="muted">Eight short lessons: the rules, then the tricks people use, from singles to the X-Wing. Each one asks you a quick question.</p>
+      <p class="muted">Nine short lessons: the rules, the tricks people use (from singles to the X-Wing) and the other puzzle types. Each one asks you a quick question.</p>
       <div class="row"><button id="tut-lessons" class="primary">Start the lessons</button><button id="tut-restart">Start over</button></div>
       <h3>App tour</h3>
       <p class="muted">A short tour that points at each part of the app and says what it does.</p>

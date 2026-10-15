@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { BOXES, allowed, bit, conflicts, isComplete, parseGrid } from '../sudoku/board';
 import { findSolutions } from '../sudoku/solver';
-import { LESSONS, LESSON_SOLUTION, TOUR, checkCell, checkDigit, elimAnswer, exampleStep, freshProgress, loadProgress, progressSummary, techniqueChoices } from './lessons';
+import { lessonGeo, LESSONS, LESSON_SOLUTION, TOUR, checkCell, checkDigit, elimAnswer, exampleStep, freshProgress, loadProgress, progressSummary, techniqueChoices } from './lessons';
 
 describe('lessons', () => {
   it('cut from a valid solved grid', () => {
@@ -13,10 +13,12 @@ describe('lessons', () => {
       const { cell, answer, choices } = l.check;
       expect(l.grid![cell], l.id).toBe(0);
       expect(choices.filter((d) => checkDigit(l, d)), l.id).toEqual([answer]);
-      expect(conflicts(l.grid!).size).toBe(0);
-      expect(allowed(l.grid!, cell) & bit(answer), l.id).toBeTruthy();
+      const geo = lessonGeo(l);
+      expect(l.grid).toHaveLength(geo.size);
+      expect(conflicts(l.grid!, geo).size).toBe(0);
+      expect(allowed(l.grid!, cell, geo) & bit(answer), l.id).toBeTruthy();
       // The wrong choices must actually be ruled out, so the lesson is fair.
-      for (const d of choices) if (d !== answer) expect(allowed(l.grid!, cell) & bit(d), `${l.id} ${d}`).toBe(0);
+      for (const d of choices) if (d !== answer) expect(allowed(l.grid!, cell, geo) & bit(d), `${l.id} ${d}`).toBe(0);
     }
     const ns = LESSONS.find((l) => l.id === 'naked-single')!;
     expect(allowed(ns.grid!, 40)).toBe(bit(5));
@@ -46,6 +48,11 @@ describe('lessons', () => {
       expect(ch).toContain(elimAnswer(ex.step));
     }
   });
+  it('mentions every puzzle type in a lesson and the tour', () => {
+    const shapes = LESSONS.find((l) => l.id === 'shapes')!;
+    for (const w of ['4x4', '6x6', 'Diagonal', 'Killer']) expect(shapes.body).toContain(w);
+    expect(TOUR.find((t) => t.id === 'puzzle')!.body).toMatch(/Diagonal, Killer/);
+  });
   it('uses short, plain words', () => {
     for (const l of LESSONS) {
       for (const sentence of l.body.split(/[.!?] /)) expect(sentence.split(' ').length, l.id).toBeLessThan(36);
@@ -61,6 +68,6 @@ describe('progress', () => {
     expect(loadProgress(store(null))).toEqual(freshProgress());
     expect(loadProgress(store('{bad'))).toEqual(freshProgress());
     expect(loadProgress(store('{"lesson":99,"lessonsDone":["rows","nope"],"tour":-3}'))).toMatchObject({ lesson: LESSONS.length - 1, lessonsDone: ['rows'], tour: 0 });
-    expect(progressSummary(freshProgress())).toMatch(/0\/8 lessons/);
+    expect(progressSummary(freshProgress())).toMatch(/0\/9 lessons/);
   });
 });

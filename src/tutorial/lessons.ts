@@ -3,7 +3,7 @@
  * lessons, the app-tour steps and saved progress. Nothing here touches the
  * DOM, so every lesson's answer is checked by a unit test.
  */
-import { BOXES, ROWS, COLS, candidates, parseGrid, type Grid } from '../sudoku/board';
+import { BOXES, ROWS, COLS, candidates, makeGeo, parseGrid, type Grid, type Variant } from '../sudoku/board';
 import { applyStep, nextStep, type Step, type TechniqueId } from '../sudoku/logic';
 import { SEEDS } from '../sudoku/seeds';
 
@@ -35,6 +35,8 @@ export interface Lesson {
   check: Ask;
   /** Shown after a wrong answer. */
   hint: string;
+  /** Puzzle shape of the lesson board (classic when left out). */
+  variant?: Variant;
 }
 
 const row1 = ROWS[0], box1 = BOXES[0];
@@ -84,7 +86,16 @@ export const LESSONS: Lesson[] = [
     ask: 'Four outlined squares form a rectangle. Which digit gets crossed out?',
     check: { kind: 'technique', technique: 'x-wing' },
     hint: 'The same digit appears in the notes of all four outlined corners.' },
+  { id: 'shapes', title: 'Other puzzle shapes',
+    body: 'Pick a puzzle type next to the level. Mini 4x4 and 6x6 use digits 1 to 4 or 1 to 6, great for starting out. Diagonal adds a rule: both long diagonals need every digit once too. In Killer, dashed cages show a total: the digits in a cage add up to it, with no repeats.',
+    ask: 'This is a Mini 4x4. Which digit goes in the bright square?',
+    variant: 'mini4', grid: [1, 2, 3, 0, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], shade: [0, 1, 2, 3],
+    check: { kind: 'digit', cell: 3, answer: 4, choices: [4, 1, 2, 3] },
+    hint: 'Row 1 already has 1, 2 and 3. A 4x4 only uses 1 to 4.' },
 ];
+
+/** The board shape for a lesson. */
+export const lessonGeo = (l: Lesson) => makeGeo(l.variant ?? 'classic');
 
 /** The first real step of a technique in the bundled puzzles, with the board and pencil marks just before it. */
 export function exampleStep(t: TechniqueId): { grid: Grid; cands: number[]; step: Step } | null {
@@ -138,7 +149,7 @@ export const TOUR: TourStep[] = [
   { id: 'undo', target: '#undo-row', title: 'Undo and timer',
     body: 'Undo (Ctrl+Z) and Redo (Ctrl+Y) step back and forward. The timer counts while you play and stops when you finish. Pause hides the puzzle.' },
   { id: 'puzzle', target: '#puzzle-card', title: 'New puzzles',
-    body: 'Pick how hard you want it, from Easy to Expert, and press New puzzle. Every puzzle has exactly one answer. Edit puzzle lets you type in one from a book or newspaper.' },
+    body: 'Pick a puzzle type (Classic, Diagonal, Killer or a small 6x6 or 4x4) and how hard you want it, from Easy to Fiendish, then press New puzzle. Every puzzle has exactly one answer. Edit puzzle lets you type in one from a book or newspaper.' },
   { id: 'hint', target: '#hint', title: 'Hints',
     body: 'Stuck? Hint shows the next step a person would take. It names the trick, like "Hidden single", outlines the squares involved, and explains it in plain words. Press it again to do the step.' },
   { id: 'steps', target: '#steps-card', title: 'Watch it solved',
