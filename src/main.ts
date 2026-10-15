@@ -33,7 +33,7 @@ window.addEventListener('error', (e) => showError(e.message || 'unknown error'))
 window.addEventListener('unhandledrejection', (e) => showError(String((e.reason as Error)?.message ?? e.reason)));
 
 // ---------- settings ----------
-interface Settings { level: Level; speed: number; autoNotes: boolean; guides: boolean; clean: boolean }
+interface Settings { level: Level; speed: number; autoNotes: boolean; guides: boolean; clean: boolean; mistakes: boolean }
 const SETTINGS_KEY = 'sudoku-solver-settings', GAME_KEY = 'sudoku-solver-game';
 const saved: Partial<Settings> = (() => { try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}'); } catch { return {}; } })();
 const settings: Settings = {
@@ -42,6 +42,7 @@ const settings: Settings = {
   autoNotes: saved.autoNotes === true,
   guides: saved.guides !== false,
   clean: saved.clean !== false,
+  mistakes: saved.mistakes !== false,
 };
 const persist = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 
@@ -116,7 +117,10 @@ for (let d = 1; d <= 9; d++) {
 
 function render() {
   const bad = conflicts(snap.values);
-  board.draw({ values: snap.values, givens: snap.givens, notes: notesOf, selected, conflicts: bad, guides: settings.guides, marks: wrongCells.size ? { ...(marks ?? {}), wrong: wrongCells } : marks });
+  // Show mistakes: digits that differ from the one answer. With no single answer, only clashes (above) are marked.
+  const wrong = new Set(wrongCells);
+  if (settings.mistakes && !editing) for (const i of mistakes()) wrong.add(i);
+  board.draw({ values: snap.values, givens: snap.givens, notes: notesOf, selected, conflicts: bad, guides: settings.guides, marks: wrong.size ? { ...(marks ?? {}), wrong } : marks });
   // Digit pad: how many of each digit are still missing.
   const count = new Array(10).fill(0);
   for (const v of snap.values) count[v]++;
@@ -682,8 +686,9 @@ document.querySelectorAll<HTMLButtonElement>('#theme-modes button').forEach((b) 
 });
 darkQuery.addEventListener('change', applyTheme);
 applyTheme();
-const guides = $<HTMLInputElement>('opt-guides'), clean = $<HTMLInputElement>('opt-clean');
-guides.checked = settings.guides; clean.checked = settings.clean;
+const guides = $<HTMLInputElement>('opt-guides'), clean = $<HTMLInputElement>('opt-clean'), showMistakes = $<HTMLInputElement>('opt-mistakes');
+guides.checked = settings.guides; clean.checked = settings.clean; showMistakes.checked = settings.mistakes;
+showMistakes.onchange = () => { settings.mistakes = showMistakes.checked; persist(); render(); };
 guides.onchange = () => { settings.guides = guides.checked; persist(); render(); };
 clean.onchange = () => { settings.clean = clean.checked; persist(); };
 // Settings: theme, light/dark, play options, updates (desktop only) and About in one dialog.
