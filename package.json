@@ -1,0 +1,40 @@
+{
+  "name": "sudoku-solver",
+  "version": "1.0.0",
+  "description": "Sudoku solver and coach: enter or generate any 9x9 puzzle, solve it instantly, or get step-by-step hints that name and explain each technique.",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "vite",
+    "build": "tsc -p . && vite build",
+    "preview": "vite preview",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p .",
+    "tauri": "tauri",
+    "desktop": "tauri build",
+    "desktop:dev": "tauri dev",
+    "lint": "eslint ."
+  },
+  "author": "ccharafeddine",
+  "license": "MIT",
+  "dependencies": {
+    "@tauri-apps/plugin-opener": "^2.7.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@tauri-apps/cli": "^2.12.2",
+    "@types/node": "^26.6.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0",
+    "typescript": "~5.9",
+    "typescript-eslint": "^8.71.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
+  },
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ccharafeddine/sudoku-solver.git"
+  },
+  "homepage": "https://github.com/ccharafeddine/sudoku-solver"
+}
