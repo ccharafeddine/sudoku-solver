@@ -230,7 +230,7 @@ html { scrollbar-gutter: stable; }
 .board-wrap { position: relative; display: flex; justify-content: center; min-width: 0; }
 /* As big as the screen allows, always square; the digits scale with it. */
 #board { width: min(100%, calc(100vh - 110px), 780px); min-width: 280px; }
-.board { container-type: inline-size; aspect-ratio: 1; display: grid; grid-template-columns: repeat(9, 1fr); grid-template-rows: repeat(9, 1fr);
+.board { container-type: inline-size; aspect-ratio: 1; display: grid; grid-template-columns: repeat(var(--n, 9), 1fr); grid-template-rows: repeat(var(--n, 9), 1fr);
   padding: 4px; gap: 0; border-radius: var(--corner-panel); background: var(--text); border: var(--border-w) solid var(--surface-border);
   box-shadow: var(--edge-detail), 0 0 0 1px var(--surface-edge), var(--shadow-1); clip-path: var(--panel-clip); }
 .brow { display: contents; }
@@ -329,3 +329,4 @@ textarea { width: 100%; padding: 9px 12px; border-radius: var(--corner-control);
 :root[data-skin='brutal'] .board .cell.wrong { box-shadow: inset 0 0 0 3px var(--bad); }
 :root[data-skin='brutal'] .board .cell:active:not(:disabled) { transform: none; }
 :root[data-skin='brutal'] #history button, :root[data-skin='brutal'] #steps button { box-shadow: none; }
+#pad button[hidden] { display: none; }

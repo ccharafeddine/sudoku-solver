@@ -107,7 +107,7 @@ function nakedSingle(v: View): Step | null {
     if (v.g[i] || popcount(v.c[i]) !== 1) continue;
     const d = onlyDigit(v.c[i]);
     return { technique: 'naked-single', place: { cell: i, digit: d }, eliminate: [], cells: [i], units: [], digits: [d],
-      text: `Look at ${v.cn(i)}. Every other digit is already used in its ${groupWords(v.geo)} or ruled out, so the only digit that fits is ${d}.` };
+      text: `Look at ${v.cn(i)}. Every other digit is already in its ${groupWords(v.geo)}, or crossed out, so the only digit that fits is ${d}.` };
   }
   return null;
 }
