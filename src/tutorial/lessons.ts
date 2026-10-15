@@ -142,7 +142,7 @@ export const TOUR: TourStep[] = [
   { id: 'hint', target: '#hint', title: 'Hints',
     body: 'Stuck? Hint shows the next step a person would take. It names the trick, like "Hidden single", outlines the squares involved, and explains it in plain words. Press it again to do the step.' },
   { id: 'steps', target: '#steps-card', title: 'Watch it solved',
-    body: 'Show steps lists every step to finish the puzzle, the human way. Press Play to watch them one at a time, or click any step to jump there. The speed slider sets how fast.' },
+    body: 'Press Play to watch the puzzle solved the way a person would, one trick at a time. Every step is listed, so you can click any of them to jump there, forwards or back. The speed slider sets how fast.' },
   { id: 'history', target: '#history-card', title: 'Your history',
     body: 'Every move you make is listed here. Click any of them to jump back to that moment, then click a later one to jump forward again.' },
   { id: 'io', target: '#io-card', title: 'Share and load',

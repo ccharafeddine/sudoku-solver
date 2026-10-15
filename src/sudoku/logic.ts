@@ -52,7 +52,7 @@ export interface Step {
 
 const list = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const cellsText = (cs: number[]) => list(cs.map(cellName));
-const digitsText = (ds: number[]) => list(ds.map(String));
+const digitsText = (ds: (number | string)[]) => list(ds.map(String));
 
 function combos<T>(xs: T[], k: number): T[][] {
   const out: T[][] = [];
